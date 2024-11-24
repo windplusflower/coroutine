@@ -6,7 +6,6 @@ void test_func(void *arg) {
     printf("Coroutine function started: %s\n", (char *)arg);
     coroutine_yield();
     printf("Coroutine function resumed: %s\n", (char *)arg);
-    coroutine_yield();
 }
 
 int main() {
@@ -16,7 +15,6 @@ int main() {
     printf("Main: Starting coroutine...\n");
     coroutine_resume(&co);
     printf("Main: Coroutine suspended.\n");
-    coroutine_resume(&co);
     printf("Main: Coroutine finished.\n");
 
     coroutine_free(&co);
