@@ -1,6 +1,9 @@
 #include "epoll_manager.h"
 
+#include <stdio.h>
+
 #include "coroutine.h"
+#include "utils.h"
 
 void init_eventlist() {
     if (EVENT_LIST == NULL) EVENT_LIST = make_empty_list();
@@ -49,7 +52,12 @@ void pop_front(coroutine_t** co, int* fd) {
     EVENT_LIST->head->next = node->next;
     *co = node->co;
     *fd = node->fd;
+    if (EVENT_LIST->head->next == NULL) EVENT_LIST->tail = EVENT_LIST->head;
     free_node(node);
+}
+coroutine_t* seek_front() {
+    assert(EVENT_LIST->head->next != NULL);
+    return EVENT_LIST->head->next->co;
 }
 
 bool list_is_empty() {
@@ -58,7 +66,7 @@ bool list_is_empty() {
 
 void event_loop() {
     while (1) {
-        if (list_is_empty()) {
+        if (list_is_empty() || seek_front() == get_running_coroutine()) {
             //协程执行完后切换回主线程
             //直到主线程再次resume后才会回到epoll
             main_context_running = true;
@@ -73,7 +81,6 @@ void event_loop() {
             free(co);
             continue;
         }
-        co->status = COROUTINE_RUNNING;
         main_context_running = false;
         coroutine_resume(co);
     }

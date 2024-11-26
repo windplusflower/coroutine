@@ -1,6 +1,8 @@
 #ifndef COROUTINE_H
 #define COROUTINE_H
 
+#define STACKSIZE 1024 * 8
+
 #include <stdlib.h>
 #include <sys/ucontext.h>
 #include <ucontext.h>
@@ -21,10 +23,10 @@ typedef struct coroutine {
     size_t stack_size;
 } coroutine_t;
 
-static coroutine_t *running_coroutine = NULL, *epoll_coroutine = NULL;
-static ucontext_t main_context;
+static coroutine_t *running_coroutine = NULL, *main_coroutine = NULL, *epoll_coroutine = NULL;
 
-ucontext_t *get_main_context();
+coroutine_t *get_main_coroutine();
+coroutine_t *get_running_coroutine();
 void coroutine_init(coroutine_t *co, void (*func)(void *), void *arg, size_t stack_size);
 void coroutine_resume(coroutine_t *co);
 void coroutine_yield();

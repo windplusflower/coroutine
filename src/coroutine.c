@@ -8,28 +8,37 @@
 #include <ucontext.h>
 
 #include "epoll_manager.h"
+#include "utils.h"
 
-ucontext_t *get_main_context() {
-    return &main_context;
+coroutine_t *get_main_coroutine() {
+    return main_coroutine;
+}
+coroutine_t *get_running_coroutine() {
+    return running_coroutine;
 }
 
 void epoll_init() {
     __thread static bool has_inited = false;
     if (has_inited) return;
     has_inited = true;
-    epoll_coroutine = (coroutine_t *)calloc(1, sizeof(coroutine_t));
-    coroutine_init(epoll_coroutine, event_loop, NULL, 1024);
+    init_eventlist();
+    epoll_coroutine = (coroutine_t *)malloc(sizeof(coroutine_t));
+    coroutine_init(epoll_coroutine, event_loop, NULL, STACKSIZE);
 }
-void running_coroutine_init() {
+void main_coroutine_init() {
     __thread static bool has_inited = false;
     if (has_inited) return;
     has_inited = true;
-    running_coroutine = (coroutine_t *)malloc(sizeof(coroutine_t));
+    main_coroutine = (coroutine_t *)malloc(sizeof(coroutine_t));
+    main_coroutine->stack_size = STACKSIZE;
+    main_coroutine->stack = malloc(STACKSIZE);
+    main_coroutine->context.uc_stack.ss_sp = main_coroutine->stack;
+    main_coroutine->context.uc_stack.ss_size = main_coroutine->stack_size;
 }
 
 void coroutine_init(coroutine_t *co, void (*func)(void *), void *arg, size_t stack_size) {
     epoll_init();
-    running_coroutine_init();
+    main_coroutine_init();
     co->status = COROUTINE_READY;
     co->func = func;
     co->arg = arg;
@@ -48,9 +57,10 @@ void coroutine_resume(coroutine_t *co) {
         co->status = COROUTINE_RUNNING;
         running_coroutine = co;
         if (is_main_running())
-            swapcontext(&main_context, &co->context);
-        else
+            swapcontext(&main_coroutine->context, &co->context);
+        else {
             swapcontext(&epoll_coroutine->context, &co->context);
+        }
     }
 }
 
@@ -63,7 +73,7 @@ void coroutine_yield() {
 }
 
 void yield_to_main() {
-    swapcontext(&epoll_coroutine->context, &main_context);
+    swapcontext(&epoll_coroutine->context, &main_coroutine->context);
 }
 
 void coroutine_free(coroutine_t *co) {
