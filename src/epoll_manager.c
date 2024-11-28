@@ -9,10 +9,15 @@ void init_eventlist() {
     if (EVENT_LIST == NULL) EVENT_LIST = make_empty_list();
 }
 
-//主线程是否正在运行，用来判断resume的主体是epoll还是主线程
-bool is_main_running() {
-    return main_context_running;
+//是否是第一次运行协程
+bool is_coroutine_started() {
+    return started;
 }
+//标志协程已经开始
+void set_coroutine_stared() {
+    started = true;
+}
+//协程无法主动结束，所以没有结束标志
 
 //暂时用先进先出队列实现一版对称式协程调度
 EventNode* make_empty_node() {
@@ -66,13 +71,6 @@ bool list_is_empty() {
 
 void event_loop() {
     while (1) {
-        if (list_is_empty() || seek_front() == get_running_coroutine()) {
-            //协程执行完后切换回主线程
-            //直到主线程再次resume后才会回到epoll
-            main_context_running = true;
-            yield_to_main();
-            continue;
-        }
         coroutine_t* co;
         int fd;
         pop_front(&co, &fd);
@@ -81,7 +79,6 @@ void event_loop() {
             free(co);
             continue;
         }
-        main_context_running = false;
         coroutine_resume(co);
     }
 }

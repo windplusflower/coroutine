@@ -25,12 +25,11 @@ typedef struct coroutine {
 
 static coroutine_t *running_coroutine = NULL, *main_coroutine = NULL, *epoll_coroutine = NULL;
 
-coroutine_t *get_main_coroutine();
+void start_eventloop();
 coroutine_t *get_running_coroutine();
 void coroutine_init(coroutine_t *co, void (*func)(void *), void *arg, size_t stack_size);
 void coroutine_resume(coroutine_t *co);
 void coroutine_yield();
-void yield_to_main();
 void coroutine_free(coroutine_t *co);
 
 #endif

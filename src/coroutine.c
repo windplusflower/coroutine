@@ -25,20 +25,19 @@ void epoll_init() {
     epoll_coroutine = (coroutine_t *)malloc(sizeof(coroutine_t));
     coroutine_init(epoll_coroutine, event_loop, NULL, STACKSIZE);
 }
-void main_coroutine_init() {
-    __thread static bool has_inited = false;
-    if (has_inited) return;
-    has_inited = true;
-    main_coroutine = (coroutine_t *)malloc(sizeof(coroutine_t));
+coroutine_t *main_coroutine_init() {
+    coroutine_t *main_coroutine = (coroutine_t *)malloc(sizeof(coroutine_t));
     main_coroutine->stack_size = STACKSIZE;
     main_coroutine->stack = malloc(STACKSIZE);
     main_coroutine->context.uc_stack.ss_sp = main_coroutine->stack;
     main_coroutine->context.uc_stack.ss_size = main_coroutine->stack_size;
+    main_coroutine->context.uc_link = &epoll_coroutine->context;
+    main_coroutine->status = COROUTINE_READY;
+    return main_coroutine;
 }
 
 void coroutine_init(coroutine_t *co, void (*func)(void *), void *arg, size_t stack_size) {
     epoll_init();
-    main_coroutine_init();
     co->status = COROUTINE_READY;
     co->func = func;
     co->arg = arg;
@@ -50,17 +49,23 @@ void coroutine_init(coroutine_t *co, void (*func)(void *), void *arg, size_t sta
     co->context.uc_stack.ss_size = stack_size;
     co->context.uc_link = &epoll_coroutine->context;
     makecontext(&co->context, (void (*)(void))func, 1, arg);
+    push_back(co, -1);
 }
 
+//开启自动调度
+//目前不支持自动调度与手动调度混用，自动调度的程序不能用resume，不然有bug。
+void start_eventloop() {
+    coroutine_t *co = main_coroutine_init();
+    push_back(co, -1);
+    swapcontext(&co->context, &epoll_coroutine->context);
+}
+
+//暂时默认只由事件循环调用resume
 void coroutine_resume(coroutine_t *co) {
     if (co->status == COROUTINE_READY || co->status == COROUTINE_SUSPENDED) {
         co->status = COROUTINE_RUNNING;
         running_coroutine = co;
-        if (is_main_running())
-            swapcontext(&main_coroutine->context, &co->context);
-        else {
-            swapcontext(&epoll_coroutine->context, &co->context);
-        }
+        swapcontext(&epoll_coroutine->context, &co->context);
     }
 }
 
@@ -70,10 +75,6 @@ void coroutine_yield() {
         push_back(running_coroutine, -1);
         swapcontext(&running_coroutine->context, &epoll_coroutine->context);
     }
-}
-
-void yield_to_main() {
-    swapcontext(&epoll_coroutine->context, &main_coroutine->context);
 }
 
 void coroutine_free(coroutine_t *co) {

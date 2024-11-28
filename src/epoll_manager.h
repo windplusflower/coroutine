@@ -19,7 +19,7 @@ typedef struct EventList {
 } EventList;
 
 __thread static EventList* EVENT_LIST = NULL;
-__thread static bool main_context_running = true;
+__thread static bool started = false;
 
 void init_eventlist();
 bool is_main_running();
