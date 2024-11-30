@@ -10,11 +10,19 @@
 #include "epoll_manager.h"
 #include "utils.h"
 
-coroutine_t *get_main_coroutine() {
-    return main_coroutine;
+void env_push(Coroutine *co) {
+    assert(ENV.size < 128);
+    ENV.call_stack[ENV.size++] = co;
 }
-coroutine_t *get_running_coroutine() {
-    return running_coroutine;
+
+Coroutine *env_pop() {
+    assert(ENV.size > 0);
+    return ENV.call_stack[--ENV.size];
+}
+
+Coroutine *get_current_coroutine() {
+    assert(ENV.size > 0);
+    return ENV.call_stack[ENV.size - 1];
 }
 
 void epoll_init() {
@@ -22,21 +30,23 @@ void epoll_init() {
     if (has_inited) return;
     has_inited = true;
     init_eventlist();
-    epoll_coroutine = (coroutine_t *)malloc(sizeof(coroutine_t));
-    coroutine_init(epoll_coroutine, event_loop, NULL, STACKSIZE);
+    ENV.eventloop_coroutine = (Coroutine *)malloc(sizeof(Coroutine));
+    ENV.size = 0;
+    coroutine_init(ENV.eventloop_coroutine, event_loop, "eventloop", STACKSIZE);
 }
-coroutine_t *main_coroutine_init() {
-    coroutine_t *main_coroutine = (coroutine_t *)malloc(sizeof(coroutine_t));
+Coroutine *main_coroutine_init() {
+    Coroutine *main_coroutine = (Coroutine *)malloc(sizeof(Coroutine));
     main_coroutine->stack_size = STACKSIZE;
     main_coroutine->stack = malloc(STACKSIZE);
     main_coroutine->context.uc_stack.ss_sp = main_coroutine->stack;
     main_coroutine->context.uc_stack.ss_size = main_coroutine->stack_size;
-    main_coroutine->context.uc_link = &epoll_coroutine->context;
+    main_coroutine->context.uc_link = &ENV.eventloop_coroutine->context;
     main_coroutine->status = COROUTINE_READY;
+    main_coroutine->arg = "main";
     return main_coroutine;
 }
 
-void coroutine_init(coroutine_t *co, void (*func)(void *), void *arg, size_t stack_size) {
+void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack_size) {
     epoll_init();
     co->status = COROUTINE_READY;
     co->func = func;
@@ -47,37 +57,36 @@ void coroutine_init(coroutine_t *co, void (*func)(void *), void *arg, size_t sta
     getcontext(&co->context);
     co->context.uc_stack.ss_sp = co->stack;
     co->context.uc_stack.ss_size = stack_size;
-    co->context.uc_link = &epoll_coroutine->context;
+    co->context.uc_link = &ENV.eventloop_coroutine->context;
     makecontext(&co->context, (void (*)(void))func, 1, arg);
+
     push_back(co, -1);
 }
 
 //开启自动调度
-//目前不支持自动调度与手动调度混用，自动调度的程序不能用resume，不然有bug。
+//目前不支持手动调度，自动调度的程序不能用resume，不然有bug。
 void start_eventloop() {
-    coroutine_t *co = main_coroutine_init();
+    Coroutine *co = main_coroutine_init();
     push_back(co, -1);
-    swapcontext(&co->context, &epoll_coroutine->context);
+    swapcontext(&co->context, &ENV.eventloop_coroutine->context);
 }
 
-//暂时默认只由事件循环调用resume
-void coroutine_resume(coroutine_t *co) {
-    if (co->status == COROUTINE_READY || co->status == COROUTINE_SUSPENDED) {
-        co->status = COROUTINE_RUNNING;
-        running_coroutine = co;
-        swapcontext(&epoll_coroutine->context, &co->context);
-    }
+//暂时默认只由事件循环调用resume，故直接保存到eventloop_coroutine
+void coroutine_resume(Coroutine *co) {
+    co->status = COROUTINE_RUNNING;
+    env_push(co);
+    swapcontext(&ENV.eventloop_coroutine->context, &co->context);
 }
 
+//暂时默认只由事件循环调用resume，故直接返回eventloop
 void coroutine_yield() {
-    if (running_coroutine->status == COROUTINE_RUNNING) {
-        running_coroutine->status = COROUTINE_SUSPENDED;
-        push_back(running_coroutine, -1);
-        swapcontext(&running_coroutine->context, &epoll_coroutine->context);
-    }
+    Coroutine *current_coroutine = env_pop();
+    current_coroutine->status = COROUTINE_SUSPENDED;
+    push_back(current_coroutine, -1);
+    swapcontext(&current_coroutine->context, &ENV.eventloop_coroutine->context);
 }
 
-void coroutine_free(coroutine_t *co) {
+void coroutine_free(Coroutine *co) {
     free(co->stack);
     co->stack = NULL;
 }

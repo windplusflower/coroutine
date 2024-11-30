@@ -26,7 +26,7 @@ EventNode* make_empty_node() {
     return res;
 }
 
-EventNode* make_node(coroutine_t* co, int fd) {
+EventNode* make_node(Coroutine* co, int fd) {
     EventNode* res = make_empty_node();
     res->co = co;
     res->fd = fd;
@@ -45,13 +45,13 @@ EventList* make_empty_list() {
     return res;
 }
 
-void push_back(coroutine_t* co, int fd) {
+void push_back(Coroutine* co, int fd) {
     EventNode* node = make_node(co, fd);
     EVENT_LIST->tail->next = node;
     EVENT_LIST->tail = node;
 }
 
-void pop_front(coroutine_t** co, int* fd) {
+void pop_front(Coroutine** co, int* fd) {
     assert(EVENT_LIST->head->next != NULL);
     EventNode* node = EVENT_LIST->head->next;
     EVENT_LIST->head->next = node->next;
@@ -60,7 +60,7 @@ void pop_front(coroutine_t** co, int* fd) {
     if (EVENT_LIST->head->next == NULL) EVENT_LIST->tail = EVENT_LIST->head;
     free_node(node);
 }
-coroutine_t* seek_front() {
+Coroutine* seek_front() {
     assert(EVENT_LIST->head->next != NULL);
     return EVENT_LIST->head->next->co;
 }
@@ -71,12 +71,11 @@ bool list_is_empty() {
 
 void event_loop() {
     while (1) {
-        coroutine_t* co;
+        Coroutine* co;
         int fd;
         pop_front(&co, &fd);
         //只有程序运行结束时来到eventloop才会是running状态。
         if (co->status == COROUTINE_RUNNING) {
-            free(co);
             continue;
         }
         coroutine_resume(co);

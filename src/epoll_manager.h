@@ -9,7 +9,7 @@
 
 typedef struct EventNode {
     struct EventNode* next;
-    coroutine_t* co;
+    Coroutine* co;
     int fd;  //等待响应的描述符,暂时不用
 } EventNode;
 
@@ -25,10 +25,10 @@ void init_eventlist();
 bool is_main_running();
 
 EventNode* make_empty_node();
-EventNode* make_node(coroutine_t*, int);
+EventNode* make_node(Coroutine*, int);
 EventList* make_empty_list();
-void push_back(coroutine_t*, int);
-void pop_front(coroutine_t**, int*);
+void push_back(Coroutine*, int);
+void pop_front(Coroutine**, int*);
 void is_empty();
 
 void event_loop();

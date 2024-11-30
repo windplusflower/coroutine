@@ -18,7 +18,7 @@ void test_func2(void *arg) {
 }
 
 int main() {
-    coroutine_t co1, co2;
+    Coroutine co1, co2;
     coroutine_init(&co1, test_func1, "Test1", STACKSIZE);
     coroutine_init(&co2, test_func2, "Test2", STACKSIZE);
     printf("Main: Starting coroutine...\n");

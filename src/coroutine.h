@@ -14,22 +14,31 @@ typedef enum {
     COROUTINE_DEAD
 } coroutine_status;
 
-typedef struct coroutine {
+typedef struct Coroutine {
     ucontext_t context;
     coroutine_status status;
     void (*func)(void *arg);
     void *arg;
     char *stack;
     size_t stack_size;
-} coroutine_t;
+} Coroutine;
 
-static coroutine_t *running_coroutine = NULL, *main_coroutine = NULL, *epoll_coroutine = NULL;
+typedef struct CoroutineEnv {
+    Coroutine *call_stack[128];
+    int size;
+    Coroutine *eventloop_coroutine;
+} CoroutineEnv;
+
+__thread static CoroutineEnv ENV;
 
 void start_eventloop();
-coroutine_t *get_running_coroutine();
-void coroutine_init(coroutine_t *co, void (*func)(void *), void *arg, size_t stack_size);
-void coroutine_resume(coroutine_t *co);
+
+void env_push(Coroutine *co);
+Coroutine *env_pop();
+
+void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack_size);
+void coroutine_resume(Coroutine *co);
 void coroutine_yield();
-void coroutine_free(coroutine_t *co);
+void coroutine_free(Coroutine *co);
 
 #endif
