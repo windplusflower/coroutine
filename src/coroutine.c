@@ -35,14 +35,19 @@ void epoll_init() {
     coroutine_init(ENV.eventloop_coroutine, event_loop, "eventloop", STACKSIZE);
 }
 Coroutine *main_coroutine_init() {
-    Coroutine *main_coroutine = (Coroutine *)malloc(sizeof(Coroutine));
+    __thread static Coroutine *main_coroutine = NULL;
+    if (main_coroutine != NULL) return main_coroutine;
+
+    main_coroutine = (Coroutine *)malloc(sizeof(Coroutine));
     main_coroutine->stack_size = STACKSIZE;
     main_coroutine->stack = malloc(STACKSIZE);
     main_coroutine->context.uc_stack.ss_sp = main_coroutine->stack;
     main_coroutine->context.uc_stack.ss_size = main_coroutine->stack_size;
-    main_coroutine->context.uc_link = &ENV.eventloop_coroutine->context;
+    main_coroutine->context.uc_link = NULL;
     main_coroutine->status = COROUTINE_READY;
     main_coroutine->arg = "main";
+
+    env_push(main_coroutine);
     return main_coroutine;
 }
 

@@ -1,7 +1,7 @@
 #ifndef COROUTINE_H
 #define COROUTINE_H
 
-#define STACKSIZE 1024 * 8
+#define STACKSIZE 1024 * 128
 
 #include <stdlib.h>
 #include <sys/ucontext.h>
