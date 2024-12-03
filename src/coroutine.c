@@ -8,7 +8,7 @@
 #include <ucontext.h>
 
 #include "epoll_manager.h"
-#include "utils.h"
+#include "log.h"
 
 void env_push(Coroutine *co) {
     assert(ENV.size < 128);
@@ -68,27 +68,28 @@ void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack
     push_back(co, -1);
 }
 
-//开启自动调度
-//目前不支持手动调度，自动调度的程序不能用resume，不然有bug。
 void start_eventloop() {
     Coroutine *co = main_coroutine_init();
     push_back(co, -1);
+    env_push(ENV.eventloop_coroutine);
     swapcontext(&co->context, &ENV.eventloop_coroutine->context);
 }
 
-//暂时默认只由事件循环调用resume，故直接保存到eventloop_coroutine
 void coroutine_resume(Coroutine *co) {
     co->status = COROUTINE_RUNNING;
+    Coroutine *cur = get_current_coroutine();
     env_push(co);
-    swapcontext(&ENV.eventloop_coroutine->context, &co->context);
+    log_debug("%s resume to %s", cur->arg, co->arg);
+    swapcontext(&cur->context, &co->context);
 }
 
-//暂时默认只由事件循环调用resume，故直接返回eventloop
 void coroutine_yield() {
     Coroutine *current_coroutine = env_pop();
+    Coroutine *upcoming_coroutine = get_current_coroutine();
     current_coroutine->status = COROUTINE_SUSPENDED;
     push_back(current_coroutine, -1);
-    swapcontext(&current_coroutine->context, &ENV.eventloop_coroutine->context);
+    log_debug("%s yield to %s", current_coroutine->arg, upcoming_coroutine->arg);
+    swapcontext(&current_coroutine->context, &upcoming_coroutine->context);
 }
 
 void coroutine_free(Coroutine *co) {

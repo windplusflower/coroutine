@@ -1,7 +1,10 @@
+add_definitions(-DLOG_USE_COLOR)
+
 set(SRC_FILES
     coroutine.c
     epoll_manager.c
     utils.c
+    log.c
 )
 
 add_library(src STATIC ${SRC_FILES})
