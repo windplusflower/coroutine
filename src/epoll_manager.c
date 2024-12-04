@@ -1,8 +1,10 @@
 #include "epoll_manager.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "coroutine.h"
+#include "log.h"
 #include "utils.h"
 
 void init_eventlist() {
@@ -55,8 +57,8 @@ void pop_front(Coroutine** co, int* fd) {
     assert(EVENT_LIST->head->next != NULL);
     EventNode* node = EVENT_LIST->head->next;
     EVENT_LIST->head->next = node->next;
-    *co = node->co;
-    *fd = node->fd;
+    if (co) *co = node->co;
+    if (fd) *fd = node->fd;
     if (EVENT_LIST->head->next == NULL) EVENT_LIST->tail = EVENT_LIST->head;
     free_node(node);
 }
@@ -69,15 +71,31 @@ bool list_is_empty() {
     return EVENT_LIST->head == EVENT_LIST->tail;
 }
 
+void show_list() {
+    EventNode* p = EVENT_LIST->head;
+    char buf[1024];
+    buf[0] = '\0';
+    while (p->next) {
+        p = p->next;
+        strcat(buf, p->co->name);
+        strcat(buf, " ");
+    }
+    log_debug("event_list: %s", buf);
+}
+
 void event_loop() {
     while (1) {
+        show_list();
+        if (list_is_empty()) continue;
+
         Coroutine* co;
         int fd;
         pop_front(&co, &fd);
-        //只有程序运行结束时来到eventloop才会是running状态。
-        if (co->status == COROUTINE_RUNNING) {
+        if (co->status == COROUTINE_DEAD) {
+            coroutine_free(co);
             continue;
         }
+        if (co->auto_schedule == false) continue;
         coroutine_resume(co);
     }
 }

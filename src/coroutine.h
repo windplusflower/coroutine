@@ -3,6 +3,7 @@
 
 #define STACKSIZE 1024 * 128
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <sys/ucontext.h>
 #include <ucontext.h>
@@ -20,6 +21,8 @@ typedef struct Coroutine {
     void (*func)(void *arg);
     void *arg;
     char *stack;
+    const char *name;
+    bool auto_schedule;  //默认自动调度，由用户resume的话会改为手动调度
     size_t stack_size;
 } Coroutine;
 
@@ -29,7 +32,14 @@ typedef struct CoroutineEnv {
     Coroutine *eventloop_coroutine;
 } CoroutineEnv;
 
+typedef struct WrappedArg {
+    void (*func)(void *);
+    void *arg;
+} WrappedArg;
+
 __thread static CoroutineEnv ENV;
+
+void show_call_stack();
 
 void start_eventloop();
 

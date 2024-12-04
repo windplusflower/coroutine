@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "log.h"
+//通过环境变量设置日志输出级别
 void log_set_level_from_env() {
     const char *log_level = getenv("LOG_LEVEL");
     if (log_level != NULL) {

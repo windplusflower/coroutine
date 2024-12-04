@@ -13,4 +13,4 @@ debug: build
 clean:
 	@rm -r build
 
-.PHONY: run build clean
+.PHONY: run build clean debug

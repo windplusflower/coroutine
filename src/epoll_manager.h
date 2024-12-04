@@ -29,7 +29,7 @@ EventNode* make_node(Coroutine*, int);
 EventList* make_empty_list();
 void push_back(Coroutine*, int);
 void pop_front(Coroutine**, int*);
-void is_empty();
+bool list_is_empty();
 
 void event_loop();
 

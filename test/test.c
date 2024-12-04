@@ -29,12 +29,14 @@ int main() {
     Coroutine co1, co2, co3;
     coroutine_init(&co1, test_func1, "Test1", STACKSIZE);
     coroutine_init(&co2, test_func2, "Test2", STACKSIZE);
-    printf("Main: Starting coroutine...\n");
+    printf("Main: Starting coroutines......\n");
     start_eventloop();
     while (finished < 2) coroutine_yield();
     coroutine_init(&co3, test_func2, "Test3", STACKSIZE);
     coroutine_resume(&co3);
-    printf("Main: Coroutine finished.\n");
+    printf("Main: Coroutine3 suspended.\n");
+    coroutine_resume(&co3);
+    printf("Main: All coroutines finished.\n");
 
     coroutine_free(&co1);
     coroutine_free(&co2);
