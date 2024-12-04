@@ -4,6 +4,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-void debug(const char *format, ...);
+void log_set_level_from_env();
 
 #endif

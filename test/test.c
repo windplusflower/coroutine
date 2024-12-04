@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "coroutine.h"
+#include "utils.h"
 
 static int finished = 0;
 
@@ -24,6 +25,7 @@ void test_func3(void *arg) {
 }
 
 int main() {
+    log_set_level_from_env();
     Coroutine co1, co2, co3;
     coroutine_init(&co1, test_func1, "Test1", STACKSIZE);
     coroutine_init(&co2, test_func2, "Test2", STACKSIZE);

@@ -1,9 +1,14 @@
+LOG_LEVEL ?= LOG_INFO
+
 build:
-	@-mkdir build
+	@mkdir -p build
 	@cd build&&cmake ..&&make
 
 run: build
-	@./build/test/test
+	@LOG_LEVEL=$(LOG_LEVEL) ./build/test/test
+
+debug: build
+	@LOG_LEVEL=LOG_TRACE ./build/test/test
 
 clean:
 	@rm -r build
