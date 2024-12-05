@@ -1,0 +1,1 @@
+.globl get_context, set_context, swap_context

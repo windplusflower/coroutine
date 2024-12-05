@@ -77,9 +77,8 @@ void func_wrapper() {
     Coroutine *co = get_current_coroutine();
     co->func(co->arg);
     co->status = COROUTINE_DEAD;
-    env_pop();
-    assert(co->context.uc_link == &get_current_coroutine()->context);
-    log_debug("%s finished and return to %s", co->name, get_current_coroutine()->name);
+    log_debug("%s finished and yield", co->name);
+    coroutine_yield();
 }
 void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack_size) {
     eventloop_init();
@@ -93,7 +92,6 @@ void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack
     getcontext(&co->context);
     co->context.uc_stack.ss_sp = co->stack;
     co->context.uc_stack.ss_size = stack_size;
-    co->context.uc_link = &ENV.eventloop_coroutine->context;
     makecontext(&co->context, (void (*)(void))func_wrapper, 0);
 
     push_back(co, -1);
@@ -119,12 +117,6 @@ void coroutine_resume(Coroutine *co) {
     //并不是由eventloop调用的resume，说明目标协程需要手动调度。
     if (cur != ENV.eventloop_coroutine) {
         co->auto_schedule = false;
-        //将程序结束后的目标改为父协程
-        getcontext(&co->context);
-        co->context.uc_stack.ss_sp = co->stack;
-        co->context.uc_stack.ss_size = co->stack_size;
-        co->context.uc_link = &cur->context;
-        makecontext(&co->context, (void (*)(void))func_wrapper, 0);
     }
     log_debug("%s resume to %s", cur->name, co->name);
     swapcontext(&cur->context, &co->context);
