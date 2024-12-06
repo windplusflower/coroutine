@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ucontext.h>
-#include <ucontext.h>
 
+#include "context.h"
 #include "epoll_manager.h"
 #include "log.h"
 
@@ -49,22 +49,16 @@ void eventloop_init() {
     co->stack = malloc(STACKSIZE);
     co->name = "event_loop";
 
-    getcontext(&co->context);
-    co->context.uc_stack.ss_sp = co->stack;
-    co->context.uc_stack.ss_size = STACKSIZE;
-    co->context.uc_link = NULL;
-    makecontext(&co->context, (void (*)(void))event_loop, 0);
+    co->context.ss_sp = co->stack;
+    co->context.ss_size = STACKSIZE;
+    make_context(&co->context, event_loop, NULL);
 }
 Coroutine *main_coroutine_init() {
     __thread static Coroutine *main_coroutine = NULL;
     if (main_coroutine != NULL) return main_coroutine;
 
     main_coroutine = (Coroutine *)malloc(sizeof(Coroutine));
-    main_coroutine->stack_size = STACKSIZE;
-    main_coroutine->stack = malloc(STACKSIZE);
-    main_coroutine->context.uc_stack.ss_sp = main_coroutine->stack;
-    main_coroutine->context.uc_stack.ss_size = main_coroutine->stack_size;
-    main_coroutine->context.uc_link = NULL;
+    //主协程用的进程的栈空间，故不需要手动分配和指定。
     main_coroutine->status = COROUTINE_READY;
     main_coroutine->arg = NULL;
     main_coroutine->name = "main";
@@ -89,11 +83,9 @@ void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack
     co->stack = malloc(stack_size);
     co->auto_schedule = true;
 
-    getcontext(&co->context);
-    co->context.uc_stack.ss_sp = co->stack;
-    co->context.uc_stack.ss_size = stack_size;
-    makecontext(&co->context, (void (*)(void))func_wrapper, 0);
-
+    co->context.ss_sp = co->stack;
+    co->context.ss_size = stack_size;
+    make_context(&co->context, func_wrapper, NULL);
     push_back(co, -1);
     co->name = arg;  //仅作调试用，用arg来辨识不同协程
 }
@@ -104,7 +96,7 @@ void start_eventloop() {
     // start_eventloop不需要将主进程加入调用栈，因为此时主进程是受eventloop调度的。
     env_pop();
     env_push(ENV.eventloop_coroutine);
-    swapcontext(&co->context, &ENV.eventloop_coroutine->context);
+    swap_context(&co->context, &ENV.eventloop_coroutine->context);
 }
 
 void coroutine_resume(Coroutine *co) {
@@ -119,7 +111,7 @@ void coroutine_resume(Coroutine *co) {
         co->auto_schedule = false;
     }
     log_debug("%s resume to %s", cur->name, co->name);
-    swapcontext(&cur->context, &co->context);
+    swap_context(&cur->context, &co->context);
 }
 
 void coroutine_yield() {
@@ -129,7 +121,7 @@ void coroutine_yield() {
     current_coroutine->status = COROUTINE_SUSPENDED;
     if (current_coroutine->auto_schedule) push_back(current_coroutine, -1);
     log_debug("%s yield to %s", current_coroutine->name, upcoming_coroutine->name);
-    swapcontext(&current_coroutine->context, &upcoming_coroutine->context);
+    swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
 
 void coroutine_free(Coroutine *co) {

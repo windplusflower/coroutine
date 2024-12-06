@@ -1,12 +1,12 @@
 #ifndef COROUTINE_H
 #define COROUTINE_H
 
+#include "context.h"
 #define STACKSIZE 1024 * 128
 
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/ucontext.h>
-#include <ucontext.h>
 
 typedef enum {
     COROUTINE_READY,
@@ -16,7 +16,7 @@ typedef enum {
 } coroutine_status;
 
 typedef struct Coroutine {
-    ucontext_t context;
+    Context context;
     coroutine_status status;
     void (*func)(void *arg);
     void *arg;
