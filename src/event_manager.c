@@ -62,18 +62,19 @@ void show_list(EventList* list) {
     log_debug("event_list: %s", buf);
 }
 
-//事件相关的协程；监听的事件；超时时间（毫秒）
+//将协程添加到准备队列
+void add_coroutine(Coroutine* co) {
+    push_back(EVENT_MANAGER.active_list, co);
+}
+//参数分别为：监听的事件；超时时间（毫秒）
 //这个函数只由库内的函数调用，保证event会传fd
-// co为NULL表示为当前协程添加事件。
-void add_event(Coroutine* co, epoll_event* event, unsigned int timeout) {
-    if (co == NULL) co = get_current_coroutine();
-    if (event == NULL || timeout == 0) {
-        push_back(EVENT_MANAGER.active_list, co);
-        return;
-    }
+//超时相关暂未实现
+void wait_event(epoll_event* event, unsigned int timeout) {
+    Coroutine* co = get_current_coroutine();
     int fd = event->data.fd;
     event->data.ptr = co;
     epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_ADD, fd, event);
+    // add_event是由重写的IO调用的，因此需要yield，当描述符可用时由调度器唤醒。
     coroutine_yield();
 }
 
@@ -84,7 +85,7 @@ void awake() {
     int nfds = epoll_wait(EVENT_MANAGER.epollfd, EVENT_MANAGER.events, EVENT_MANAGER.event_size, -1);
     epoll_event* event = EVENT_MANAGER.events;
     for (int i = 0; i < nfds; i++) {
-        add_event(event[i].data.ptr, NULL, 0);
+        add_coroutine(event[i].data.ptr);
     }
 }
 void event_loop() {

@@ -37,7 +37,8 @@ Coroutine* pop_front(EventList*);
 bool is_emptylist(EventList*);
 void show_list(EventList*);
 
-void add_event(Coroutine*, epoll_event*, unsigned int);
+void wait_event(epoll_event*, unsigned int);
+void add_coroutine(Coroutine* co);
 
 void event_loop();
 

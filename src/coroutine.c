@@ -86,13 +86,13 @@ void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack
     co->context.ss_sp = co->stack;
     co->context.ss_size = stack_size;
     make_context(&co->context, func_wrapper, NULL);
-    add_event(co, NULL, 0);
+    add_coroutine(co);
     co->name = arg;  //仅作调试用，用arg来辨识不同协程
 }
 
 void start_eventloop() {
     Coroutine *co = main_coroutine_init();
-    add_event(co, NULL, 0);
+    add_coroutine(co);
     // start_eventloop不需要将主进程加入调用栈，因为此时主进程是受eventloop调度的。
     env_pop();
     env_push(ENV.eventloop_coroutine);
@@ -119,7 +119,7 @@ void coroutine_yield() {
     Coroutine *current_coroutine = env_pop();
     Coroutine *upcoming_coroutine = get_current_coroutine();
     current_coroutine->status = COROUTINE_SUSPENDED;
-    if (current_coroutine->auto_schedule) add_event(current_coroutine, NULL, 0);
+    if (current_coroutine->auto_schedule) add_coroutine(current_coroutine);
     log_debug("%s yield to %s", current_coroutine->name, upcoming_coroutine->name);
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
