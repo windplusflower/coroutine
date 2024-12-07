@@ -8,7 +8,7 @@
 #include <sys/ucontext.h>
 
 #include "context.h"
-#include "epoll_manager.h"
+#include "event_manager.h"
 #include "log.h"
 
 void show_call_stack() {
@@ -40,7 +40,7 @@ void eventloop_init() {
     __thread static bool has_inited = false;
     if (has_inited) return;
     has_inited = true;
-    init_eventlist();
+    init_eventmanager();
 
     ENV.eventloop_coroutine = (Coroutine *)malloc(sizeof(Coroutine));
     ENV.size = 0;
@@ -86,13 +86,13 @@ void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack
     co->context.ss_sp = co->stack;
     co->context.ss_size = stack_size;
     make_context(&co->context, func_wrapper, NULL);
-    push_back(co, -1);
+    add_event(co, NULL, 0);
     co->name = arg;  //仅作调试用，用arg来辨识不同协程
 }
 
 void start_eventloop() {
     Coroutine *co = main_coroutine_init();
-    push_back(co, -1);
+    add_event(co, NULL, 0);
     // start_eventloop不需要将主进程加入调用栈，因为此时主进程是受eventloop调度的。
     env_pop();
     env_push(ENV.eventloop_coroutine);
@@ -119,7 +119,7 @@ void coroutine_yield() {
     Coroutine *current_coroutine = env_pop();
     Coroutine *upcoming_coroutine = get_current_coroutine();
     current_coroutine->status = COROUTINE_SUSPENDED;
-    if (current_coroutine->auto_schedule) push_back(current_coroutine, -1);
+    if (current_coroutine->auto_schedule) add_event(current_coroutine, NULL, 0);
     log_debug("%s yield to %s", current_coroutine->name, upcoming_coroutine->name);
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
