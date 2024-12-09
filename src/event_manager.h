@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
 
@@ -24,6 +25,8 @@ typedef struct EventManager {
     EventList* active_list;
     int epollfd, event_size;
     epoll_event* events;
+    EventList* waiting_co[1024];  // fd对应的协程列表
+    epoll_event* flags[1024];     // fd正在监听的事件
 } EventManager;
 
 __thread static EventManager EVENT_MANAGER;

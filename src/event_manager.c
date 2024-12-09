@@ -1,6 +1,7 @@
 #include "event_manager.h"
 
 #include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,13 +11,19 @@
 #include "log.h"
 #include "utils.h"
 
+EventList* make_empty_list() {
+    EventList* res = (EventList*)malloc(sizeof(EventList));
+    res->head = (EventNode*)calloc(1, sizeof(EventNode));
+    res->tail = res->head;
+    return res;
+}
+
 void init_eventmanager() {
-    EVENT_MANAGER.active_list = (EventList*)malloc(sizeof(EventList));
-    EVENT_MANAGER.active_list->head = (EventNode*)calloc(1, sizeof(EventNode));
-    EVENT_MANAGER.active_list->tail = EVENT_MANAGER.active_list->head;
+    EVENT_MANAGER.active_list = make_empty_list();
     EVENT_MANAGER.epollfd = epoll_create1(0);
     EVENT_MANAGER.event_size = EVENTSIZE;
     EVENT_MANAGER.events = (epoll_event*)malloc(EVENTSIZE * sizeof(epoll_event));
+    log_debug("Event manager init finished");
 }
 
 EventNode* make_node(Coroutine* co) {
@@ -46,6 +53,13 @@ Coroutine* pop_front(EventList* list) {
     return co;
 }
 
+void remove_next(EventNode* node) {
+    assert(node->next != NULL);
+    EventNode* tmp = node->next;
+    node->next = tmp->next;
+    free_node(tmp);
+}
+
 bool is_emptylist(EventList* list) {
     return list->head == list->tail;
 }
@@ -66,32 +80,77 @@ void show_list(EventList* list) {
 void add_coroutine(Coroutine* co) {
     push_back(EVENT_MANAGER.active_list, co);
 }
-//参数分别为：监听的事件；超时时间（毫秒）
+
+//加入epoll,合并不同协程对相同fd的等待
+void push_in_epoll(Coroutine* co) {
+    co->in_epoll = true;
+    int fd = co->fd;
+    //第一次监听该fd,直接添加。
+    if (EVENT_MANAGER.waiting_co[fd] == NULL) {
+        EVENT_MANAGER.waiting_co[fd] = make_empty_list();
+        push_back(EVENT_MANAGER.waiting_co[fd], co);
+        EVENT_MANAGER.flags[fd] = (epoll_event*)malloc(sizeof(epoll_event));
+        EVENT_MANAGER.flags[fd]->events = co->event->events;
+        EVENT_MANAGER.flags[fd]->data.fd = fd;
+        epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_ADD, fd, EVENT_MANAGER.flags[fd]);
+        return;
+    }
+
+    push_back(EVENT_MANAGER.waiting_co[fd], co);
+    //已经监听了fd,且需要监听的事件是已监听事件的子集，无需操作epoll
+    if ((EVENT_MANAGER.flags[fd]->events & co->event->events) == co->event->events) return;
+    //剩下的就是已经监听了fd,且需要监听的事件至少有一部分没有监听
+    EVENT_MANAGER.flags[fd]->events |= co->event->events;
+    epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_MOD, fd, EVENT_MANAGER.flags[fd]);
+}
+
+//参数分别为：等待的事件；超时时间（毫秒）
 //这个函数只由库内的函数调用，保证event会传fd
 //超时相关暂未实现
 void wait_event(epoll_event* event, unsigned int timeout) {
     Coroutine* co = get_current_coroutine();
     int fd = event->data.fd;
     event->data.ptr = co;
-    epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_ADD, fd, event);
+    co->fd = fd;
+    co->event = event;
+    push_in_epoll(co);
     // add_event是由重写的IO调用的，因此需要yield，当描述符可用时由调度器唤醒。
     coroutine_yield();
 }
 
-// active_list为空时调用
-//意味着此时所有的协程都处于等待IO状态
-//因此可以阻塞直到有可运行的协程加入运行队列
+//唤醒收到响应的协程，加入执行队列
+//这里不能等执行队列为空时才调用，因为可能有的协程是在忙等待,此时执行队列永远不会空
 void awake() {
-    int nfds = epoll_wait(EVENT_MANAGER.epollfd, EVENT_MANAGER.events, EVENT_MANAGER.event_size, -1);
-    epoll_event* event = EVENT_MANAGER.events;
+    int nfds = epoll_wait(EVENT_MANAGER.epollfd, EVENT_MANAGER.events, EVENT_MANAGER.event_size, 0);
+    if (nfds <= 0) return;
+    epoll_event* events = EVENT_MANAGER.events;
+    Coroutine* co;
     for (int i = 0; i < nfds; i++) {
-        add_coroutine(event[i].data.ptr);
+        int fd = events[i].data.fd;
+        uint32_t flag = events[i].events;
+        EventNode* p = EVENT_MANAGER.waiting_co[fd]->head;
+        while (p->next) {
+            if ((p->next->co->event->events & flag) != 0) {
+                push_back(EVENT_MANAGER.active_list, p->next->co);
+                p->next->co->in_epoll = false;
+                remove_next(p);
+            } else
+                p = p->next;
+        }
+        // flag是已监听成功的事件，不需要继续监听了
+        EVENT_MANAGER.flags[fd]->events &= ~flag;
+        if (EVENT_MANAGER.flags[fd]->events)
+            //还有剩余事件则继续监听
+            epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_MOD, fd, EVENT_MANAGER.flags[fd]);
+        else
+            //否则不监听
+            epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_DEL, fd, NULL);
     }
 }
 void event_loop() {
     while (1) {
         show_list(EVENT_MANAGER.active_list);
-        if (is_emptylist(EVENT_MANAGER.active_list)) awake();
+        awake();
         Coroutine* co = pop_front(EVENT_MANAGER.active_list);
         if (co->status == COROUTINE_DEAD) {
             coroutine_free(co);

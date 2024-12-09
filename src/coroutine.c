@@ -52,6 +52,7 @@ void eventloop_init() {
     co->context.ss_sp = co->stack;
     co->context.ss_size = STACKSIZE;
     make_context(&co->context, event_loop, NULL);
+    log_debug("eventloop init finished");
 }
 Coroutine *main_coroutine_init() {
     __thread static Coroutine *main_coroutine = NULL;
@@ -63,6 +64,7 @@ Coroutine *main_coroutine_init() {
     main_coroutine->arg = NULL;
     main_coroutine->name = "main";
     main_coroutine->auto_schedule = true;
+    main_coroutine->in_epoll = false;
 
     env_push(main_coroutine);
     return main_coroutine;
@@ -82,6 +84,7 @@ void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack
     co->stack_size = stack_size;
     co->stack = malloc(stack_size);
     co->auto_schedule = true;
+    co->in_epoll = false;
 
     co->context.ss_sp = co->stack;
     co->context.ss_size = stack_size;
@@ -91,6 +94,7 @@ void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack
 }
 
 void start_eventloop() {
+    eventloop_init();
     Coroutine *co = main_coroutine_init();
     add_coroutine(co);
     // start_eventloop不需要将主进程加入调用栈，因为此时主进程是受eventloop调度的。
@@ -119,8 +123,9 @@ void coroutine_yield() {
     Coroutine *current_coroutine = env_pop();
     Coroutine *upcoming_coroutine = get_current_coroutine();
     current_coroutine->status = COROUTINE_SUSPENDED;
-    if (current_coroutine->auto_schedule) add_coroutine(current_coroutine);
-    log_debug("%s yield to %s", current_coroutine->name, upcoming_coroutine->name);
+    if (current_coroutine->auto_schedule && !current_coroutine->in_epoll) add_coroutine(current_coroutine);
+    log_debug("%s(%d) yield to %s", current_coroutine->name, current_coroutine->auto_schedule,
+              upcoming_coroutine->name);
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
 

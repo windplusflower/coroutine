@@ -42,3 +42,16 @@ int main() {
     coroutine_free(&co2);
     return 0;
 }
+/*正确输出：
+
+Main: Starting coroutines......
+Coroutine function started: Test1
+Coroutine function started: Test2
+Coroutine function resumed: Test1
+Coroutine function resumed: Test2
+Coroutine function started: Test3
+Main: Coroutine3 suspended.
+Coroutine function resumed: Test3
+Main: All coroutines finished.
+
+*/

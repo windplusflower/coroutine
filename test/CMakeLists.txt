@@ -1,7 +1,8 @@
-set(TEST_FILES
-    test.c
-)
+file(GLOB TEST_SOURCES "*.c")
 
-add_executable(test ${TEST_FILES})
+foreach(SOURCE_FILE ${TEST_SOURCES})
+    get_filename_component(EXE_NAME ${SOURCE_FILE} NAME_WE)
+    add_executable(${EXE_NAME} ${SOURCE_FILE})
+    target_link_libraries(${EXE_NAME} src)
+endforeach()
 
-target_link_libraries(test src)
