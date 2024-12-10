@@ -53,15 +53,16 @@ Coroutine* pop_front(EventList* list) {
     return co;
 }
 
-void remove_next(EventNode* node) {
+void remove_next(EventList* list, EventNode* node) {
     assert(node->next != NULL);
     EventNode* tmp = node->next;
     node->next = tmp->next;
     free_node(tmp);
+    if (node->next == NULL) list->tail = node;
 }
 
 bool is_emptylist(EventList* list) {
-    return list->head == list->tail;
+    return list == NULL || list->head == list->tail;
 }
 
 void show_list(EventList* list) {
@@ -76,6 +77,16 @@ void show_list(EventList* list) {
     log_debug("event_list: %s", buf);
 }
 
+void show_epoll() {
+    log_debug("****************epoll****************");
+    for (int i = 0; i < 1024; i++) {
+        if (EVENT_MANAGER.waiting_co[i] == NULL) continue;
+        log_debug("fd: %d", i);
+        show_list(EVENT_MANAGER.waiting_co[i]);
+    }
+    log_debug("***************epoll****************");
+}
+
 //将协程添加到准备队列
 void add_coroutine(Coroutine* co) {
     push_back(EVENT_MANAGER.active_list, co);
@@ -86,7 +97,7 @@ void push_in_epoll(Coroutine* co) {
     co->in_epoll = true;
     int fd = co->fd;
     //第一次监听该fd,直接添加。
-    if (EVENT_MANAGER.waiting_co[fd] == NULL) {
+    if (EVENT_MANAGER.waiting_co[fd] == NULL || is_emptylist(EVENT_MANAGER.waiting_co[fd])) {
         EVENT_MANAGER.waiting_co[fd] = make_empty_list();
         push_back(EVENT_MANAGER.waiting_co[fd], co);
         EVENT_MANAGER.flags[fd] = (epoll_event*)malloc(sizeof(epoll_event));
@@ -114,6 +125,7 @@ void wait_event(epoll_event* event, unsigned int timeout) {
     co->fd = fd;
     co->event = event;
     push_in_epoll(co);
+    log_debug("%s wait event", co->name);
     // add_event是由重写的IO调用的，因此需要yield，当描述符可用时由调度器唤醒。
     coroutine_yield();
 }
@@ -129,14 +141,21 @@ void awake() {
         int fd = events[i].data.fd;
         uint32_t flag = events[i].events;
         EventNode* p = EVENT_MANAGER.waiting_co[fd]->head;
+        bool find_event = false;
         while (p->next) {
             if ((p->next->co->event->events & flag) != 0) {
                 push_back(EVENT_MANAGER.active_list, p->next->co);
                 p->next->co->in_epoll = false;
-                remove_next(p);
+                remove_next(EVENT_MANAGER.waiting_co[fd], p);
+                //同一个fd一次只弹出一个协程，因为同时弹出多个的话，可能一个协程的操作使另一个陷入阻塞。
+                //弹出时是弹出最早的，如果该协程再次加入则会进入队尾，实现轮转，不会导致其它协程饥饿。
+                find_event = true;
+                break;
             } else
                 p = p->next;
         }
+        if (find_event) continue;
+        //运行到这说明该fd的该事件已经没有协程需要监听了
         // flag是已监听成功的事件，不需要继续监听了
         EVENT_MANAGER.flags[fd]->events &= ~flag;
         if (EVENT_MANAGER.flags[fd]->events)
@@ -150,6 +169,7 @@ void awake() {
 void event_loop() {
     while (1) {
         show_list(EVENT_MANAGER.active_list);
+        show_epoll();
         awake();
         Coroutine* co = pop_front(EVENT_MANAGER.active_list);
         if (co->status == COROUTINE_DEAD) {
