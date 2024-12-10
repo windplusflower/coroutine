@@ -124,8 +124,7 @@ void coroutine_yield() {
     Coroutine *upcoming_coroutine = get_current_coroutine();
     current_coroutine->status = COROUTINE_SUSPENDED;
     if (current_coroutine->auto_schedule && !current_coroutine->in_epoll) add_coroutine(current_coroutine);
-    log_debug("%s(%d) yield to %s", current_coroutine->name, current_coroutine->auto_schedule,
-              upcoming_coroutine->name);
+    log_debug("%s yield to %s", current_coroutine->name, upcoming_coroutine->name);
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
 

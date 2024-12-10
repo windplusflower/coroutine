@@ -44,7 +44,7 @@ void push_back(EventList* list, Coroutine* co) {
 }
 
 Coroutine* pop_front(EventList* list) {
-    assert(EVENT_LIST->head->next != NULL);
+    assert(list->head->next != NULL);
     EventNode* node = list->head->next;
     list->head->next = node->next;
     Coroutine* co = node->co;
