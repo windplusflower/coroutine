@@ -96,11 +96,14 @@ void add_coroutine(Coroutine* co) {
 void push_in_epoll(Coroutine* co) {
     co->in_epoll = true;
     int fd = co->fd;
-    //第一次监听该fd,直接添加。
-    if (EVENT_MANAGER.waiting_co[fd] == NULL || is_emptylist(EVENT_MANAGER.waiting_co[fd])) {
+    //初次访问，分配内存
+    if (EVENT_MANAGER.waiting_co[fd] == NULL) {
         EVENT_MANAGER.waiting_co[fd] = make_empty_list();
-        push_back(EVENT_MANAGER.waiting_co[fd], co);
         EVENT_MANAGER.flags[fd] = (epoll_event*)malloc(sizeof(epoll_event));
+    }
+    //第一次监听该fd,直接添加进epoll。
+    if (is_emptylist(EVENT_MANAGER.waiting_co[fd])) {
+        push_back(EVENT_MANAGER.waiting_co[fd], co);
         EVENT_MANAGER.flags[fd]->events = co->event->events;
         EVENT_MANAGER.flags[fd]->data.fd = fd;
         epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_ADD, fd, EVENT_MANAGER.flags[fd]);
@@ -168,9 +171,10 @@ void awake() {
 }
 void event_loop() {
     while (1) {
-        show_list(EVENT_MANAGER.active_list);
-        show_epoll();
         awake();
+        show_epoll();
+        show_list(EVENT_MANAGER.active_list);
+        if (is_emptylist(EVENT_MANAGER.active_list)) continue;
         Coroutine* co = pop_front(EVENT_MANAGER.active_list);
         if (co->status == COROUTINE_DEAD) {
             coroutine_free(co);
