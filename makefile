@@ -12,9 +12,6 @@ build:
 $(C_BASENAMES): build
 	@LOG_LEVEL=$(LOG_LEVEL) ./build/test/$@
 
-debug: build
-	@LOG_LEVEL=LOG_TRACE ./build/test/test
-
 clean:
 	@rm -r build
 
