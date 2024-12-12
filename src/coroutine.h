@@ -22,11 +22,11 @@ typedef struct Coroutine {
     void *arg;
     char *stack;
     size_t stack_size;
-    const char *name;           //用于调试
-    bool auto_schedule;         //默认自动调度，由用户resume的话会改为手动调度
-    bool in_epoll;              //是否在等待事件
-    int fd;                     //当前协程因哪个fd而挂起
-    struct epoll_event *event;  //当前协程为了监听哪个事件而挂起
+    const char *name;    //用于调试
+    bool auto_schedule;  //默认自动调度，由用户resume的话会改为手动调度
+    bool in_epoll;       //是否在等待事件
+    int fd;              //当前协程因哪个fd而挂起
+    struct epoll_event *event;  //当前协程为了监听哪个事件而挂起；当前协程因为收到哪个事件而被唤醒
 } Coroutine;
 
 typedef struct CoroutineEnv {

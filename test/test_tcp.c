@@ -10,7 +10,7 @@
 #include "hook.h"
 #include "utils.h"
 
-#define PORT 8080
+int PORT = 1000;
 #define BUFFER_SIZE 1024
 
 void send_coroutine(void* arg) {
@@ -96,6 +96,7 @@ void recv_coroutine(void* arg) {
 
 int main() {
     log_set_level_from_env();
+    PORT += rand() % 10000;
     Coroutine sender, receiver;
     coroutine_init(&sender, send_coroutine, "sender", STACKSIZE);
     coroutine_init(&receiver, recv_coroutine, "receiver", STACKSIZE);

@@ -109,7 +109,6 @@ void push_in_epoll(Coroutine* co) {
         epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_ADD, fd, EVENT_MANAGER.flags[fd]);
         return;
     }
-
     push_back(EVENT_MANAGER.waiting_co[fd], co);
     //已经监听了fd,且需要监听的事件是已监听事件的子集，无需操作epoll
     if ((EVENT_MANAGER.flags[fd]->events & co->event->events) == co->event->events) return;
@@ -142,11 +141,13 @@ void awake() {
     Coroutine* co;
     for (int i = 0; i < nfds; i++) {
         int fd = events[i].data.fd;
+        log_debug("fd:%d", fd);
         uint32_t flag = events[i].events;
         EventNode* p = EVENT_MANAGER.waiting_co[fd]->head;
         bool find_event = false;
         while (p->next) {
             if ((p->next->co->event->events & flag) != 0) {
+                p->next->co->event->events = flag;
                 push_back(EVENT_MANAGER.active_list, p->next->co);
                 p->next->co->in_epoll = false;
                 remove_next(EVENT_MANAGER.waiting_co[fd], p);
@@ -161,7 +162,7 @@ void awake() {
         //运行到这说明该fd的该事件已经没有协程需要监听了
         // flag是已监听成功的事件，不需要继续监听了
         EVENT_MANAGER.flags[fd]->events &= ~flag;
-        if (EVENT_MANAGER.flags[fd]->events)
+        if (EVENT_MANAGER.flags[fd]->events && !is_emptylist(EVENT_MANAGER.waiting_co[fd]))
             //还有剩余事件则继续监听
             epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_MOD, fd, EVENT_MANAGER.flags[fd]);
         else

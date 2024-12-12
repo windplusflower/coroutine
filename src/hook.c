@@ -1,8 +1,10 @@
 #include "hook.h"
 
+#include <sys/epoll.h>
 #include <unistd.h>
 
 #include "event_manager.h"
+#include "log.h"
 
 ssize_t co_read(int fd, void *buf, size_t nbyte) {
     int flag = fcntl(fd, F_GETFL);
@@ -10,7 +12,7 @@ ssize_t co_read(int fd, void *buf, size_t nbyte) {
     epoll_event event;
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
-    event.events = EPOLLIN;
+    event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
     wait_event(&event, -1);
     return read(fd, buf, nbyte);
 }
@@ -22,7 +24,7 @@ ssize_t co_write(int fd, const void *buf, size_t nbyte) {
     if (flag & O_NONBLOCK) return write(fd, buf, nbyte);
     epoll_event event;
     event.data.fd = fd;
-    event.events = EPOLLOUT;
+    event.events = EPOLLOUT | EPOLLERR | EPOLLHUP;
     int ret;
     while (1) {
         wait_event(&event, -1);
@@ -31,7 +33,7 @@ ssize_t co_write(int fd, const void *buf, size_t nbyte) {
         //需要改回阻塞
         fcntl(fd, F_SETFL, flag);
         //成功写，则返回
-        if (ret > 0) break;
+        if (ret >= 0) break;
         //发生了错误，则返回
         if (ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK) break;
         //继续等待fd变为可写
@@ -46,7 +48,7 @@ ssize_t co_sendto(int fd, const void *buf, size_t n, int flags, const struct soc
 
     epoll_event event;
     event.data.fd = fd;
-    event.events = EPOLLOUT;
+    event.events = EPOLLOUT | EPOLLERR | EPOLLHUP;
     int ret;
     while (1) {
         wait_event(&event, -1);
@@ -55,7 +57,7 @@ ssize_t co_sendto(int fd, const void *buf, size_t n, int flags, const struct soc
         //需要改回阻塞
         fcntl(fd, F_SETFL, flag);
         //成功写，则返回
-        if (ret > 0) break;
+        if (ret >= 0) break;
         //发生了错误，则返回
         if (ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK) break;
         //继续等待fd变为可写
@@ -70,7 +72,7 @@ ssize_t co_recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *add
     epoll_event event;
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
-    event.events = EPOLLIN;
+    event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
     wait_event(&event, -1);
     return recvfrom(fd, buf, n, flags, addr, addrlen);
 }
@@ -81,7 +83,7 @@ ssize_t co_send(int fd, const void *buf, size_t n, int flags) {
 
     epoll_event event;
     event.data.fd = fd;
-    event.events = EPOLLOUT;
+    event.events = EPOLLOUT | EPOLLERR | EPOLLHUP;
     int ret;
     while (1) {
         wait_event(&event, -1);
@@ -90,7 +92,7 @@ ssize_t co_send(int fd, const void *buf, size_t n, int flags) {
         //需要改回阻塞
         fcntl(fd, F_SETFL, flag);
         //成功写，则返回
-        if (ret > 0) break;
+        if (ret >= 0) break;
         //发生了错误，则返回
         if (ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK) break;
         //继续等待fd变为可写
@@ -104,7 +106,7 @@ ssize_t co_recv(int fd, void *buf, size_t n, int flags) {
     epoll_event event;
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
-    event.events = EPOLLIN;
+    event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
     wait_event(&event, -1);
     return recv(fd, buf, n, flags);
 }
@@ -115,7 +117,7 @@ int co_accept(int fd, struct sockaddr *addr, socklen_t *addrlen) {
     epoll_event event;
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
-    event.events = EPOLLIN;
+    event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
     wait_event(&event, -1);
     return accept(fd, addr, addrlen);
 }

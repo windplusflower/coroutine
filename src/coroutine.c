@@ -51,7 +51,7 @@ void eventloop_init() {
 
     co->context.ss_sp = co->stack;
     co->context.ss_size = STACKSIZE;
-    make_context(&co->context, event_loop, NULL);
+    make_context(&co->context, event_loop);
     log_debug("eventloop init finished");
 }
 Coroutine *main_coroutine_init() {
@@ -78,6 +78,7 @@ void func_wrapper() {
 }
 void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack_size) {
     eventloop_init();
+    if (stack_size <= 0) stack_size = STACKSIZE;
     co->status = COROUTINE_READY;
     co->func = func;
     co->arg = arg;
@@ -88,9 +89,10 @@ void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack
 
     co->context.ss_sp = co->stack;
     co->context.ss_size = stack_size;
-    make_context(&co->context, func_wrapper, NULL);
+    make_context(&co->context, func_wrapper);
     add_coroutine(co);
     co->name = arg;  //仅作调试用，用arg来辨识不同协程
+    if (co->name == NULL) co->name = "NoName";
 }
 
 void start_eventloop() {
@@ -123,7 +125,8 @@ void coroutine_yield() {
     Coroutine *current_coroutine = env_pop();
     Coroutine *upcoming_coroutine = get_current_coroutine();
     current_coroutine->status = COROUTINE_SUSPENDED;
-    if (current_coroutine->auto_schedule && !current_coroutine->in_epoll) add_coroutine(current_coroutine);
+    if (current_coroutine->auto_schedule && !current_coroutine->in_epoll)
+        add_coroutine(current_coroutine);
     log_debug("%s yield to %s", current_coroutine->name, upcoming_coroutine->name);
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }

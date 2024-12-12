@@ -1,5 +1,31 @@
 # coroutine
-a coroutine framework written in C
+一个纯C实现的基于异步IO事件通知的协程框架
+
+## 运行
+使用`make testname`即可运行相应的test
+可以使用`LOG_LEVEL`环境变量指定日志级别，不指定则默认是`LOG_INFO`
+比如：
+```
+make test_rdwr LOG_LEVEL=LOG_DEBUG
+```
+
+## 接口
+```C
+//创建协程，并将创建出来的协程保存到参数co中
+//参数func需要是一个void (*)(void*)类型的函数
+//arg是一个void*指针，表示传给func的参数，可以为NULL
+//stack_size是栈大小，可以用0表示由框架指定
+void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack_size);
+
+//唤醒协程co
+void coroutine_resume(Coroutine *co);
+
+//挂起当前协程
+void coroutine_yield();
+
+//运行完毕后释放协程内存
+void coroutine_free(Coroutine *co);
+```
 
 ## 进度
 - **24.11.23**: 实现简易的单对父子协程切换功能。
@@ -8,11 +34,12 @@ a coroutine framework written in C
 - **24.11.30**: 添加协程调用栈的支持，为手动调度的支持做准备。
 - **24.12.03**: 添加外部日志库`log.c`用于调试，尝试支持手动调度。
 - **24.12.04**: 实现手动调度与自动调度混合；对用户函数进行封装使得函数退出时能自动修改status为DEAD。
-- **24.12.06**: 手写汇编实现get_context,set_context以及swap_context用来替换posix里相关的函数，居然一次性写对了。
+- **24.12.06**: 手写汇编实现get_context,set_context以及swap_context用来替换ucontext的相关的函数，居然一次性写对了。
 - **24.12.07**: 为进程调度引入epoll，准备实现各调用的协程版本。
 - **24.12.09**: 修复epoll相关bug，完善基于epoll的协程调度，实现可自动在阻塞时让出cpu的read调用。
 - **24.12.10**: 修复epoll相关bug，实现write调用。
 - **24.12.11**: 实现sendto、recvfrom、send、recv、accept。
+- **24.12.12**: 修复创建协程传递的参数不能为NULL的BUG，修复epoll相关bug，添加小根堆的实现，为实现超时机制做准备。完善readme文档介绍。
 
 ## Debug 记录
 ### 2024.11.25~2024.11.26
@@ -22,10 +49,12 @@ a coroutine framework written in C
 ### 2024.12.4
 将函数进行一次封装后，调试输出发现函数的arg参数为null。后发现是因为eventloop也调用coroutine_init进行创建，但有些操作并不适用于eventloop，因此单独实现epoll_event的初始化以解决。
 ### 2024.12.9
-- 对于test_read，read第一次让出cpu后，协程一直在main和test_suspend之间切换，即便已经有了标准输入。调试发现是因为之前的逻辑只有在可执行协程为空时才会去检查epoll，但实际上有的可执行协程可能实在忙等待（比如此例的main)，从而永远无法调度到read。改为每次协程切换时都检查epoll后解决。
+- 对于test_read，read第一次让出cpu后，协程一直在main和test_suspend之间切换，即便已经有了标准输入。调试发现是因为之前的逻辑只有在可执行协程为空时才会去检查epoll，但实际上有的可执行协程可能实在忙等待(比如此例的main)，从而永远无法调度到read。改为每次协程切换时都检查epoll后解决。
 - 解决上述问题后，发现只有第一次read阻塞后能正常切换，当第二次read阻塞后就不会切换了。调试发现，read被多次加入可执行队列中，因为之前改成了每次切换协程时都检查epoll，但并没有修改epoll，导致read协程被多次添加到可执行队列。因此当read被从epoll加入到可执行队列时，需要移除对它的监听。进而想到，可能会出现多个协程监听同一个fd的不同事件的情况，这是之前没有考虑过的，因此重构epoll相关数据结构和代码逻辑，为每个文件描述符维护一个正在等待的协程队列，当某事件发生时，遍历这个文件描述符的协程队列，将等待对应事件的协程加入到可执行队列并从等待队列移除，此时如果还有其它事件需要继续监听，则修改监听事件，否则从epoll中删除这个文件描述符。
 - 解决上述问题后，发现read协程还是有被多次加入可执行队列的现象。调试后发现，是因为wait_event中调用了coroutine_yield来让出cpu，但是这个操作本身就会把协程加入可执行队列。因此为协程新增了in_epoll字段，表示这个协程是否加入了epoll，如果是，那么yield时则不需要将其加入可执行队列。
 ### 2024.12.10
 昨晚睡前突然想到，如果多个协程监听同一个fd的读操作，当fd可读时这些协程都会被加入可执行队列，此时如果第一个协程把fd读完了，那么它又会变回不可读，但后面的协程依旧是以为它可读，从而阻塞(其它操作同理)。想了两个方案，一个是在每次读操作之前再检查一下是否确实可读，另一个是对于同一个fd一次只唤醒一个协程。如果用前者的话，会有反复将协程加入移除epoll队列的情况，当监听同一个fd的协程较多时会浪费较多时间，所以选择了后者。
 ### 2024.12.11
 运行co_recvfrom时，在本因阻塞的情况下返回了“Resource temporarily unavailable”导致没有让出cpu。调试后发现，是因为co_sendto时，需要在获取cpu后发送数据前将fd改为非阻塞，但实际上在获取cpu前就改为非阻塞了，因此切换到其它协程时并没有正确还原fd。将修改为非阻塞的操作移到获取cpu后解决问题。
+### 2024.12.12
+尝试把监听的事件添加上EPOLLHUP和EPOLLERR后，发现epoll不会对相应的EPOLLIN和EPOLLOUT进行响应。调试后发现，是因为epoll监听事件的删除逻辑中，是需要对应fd的events为0时才删除对应的fd的监听，但所有等待进程的响应事件的并集可能只是对应fd事件的真子集，此时等待队列为空，应该要触发fd的删除而没有删除。当再次为fd添加监听时，因为等待队列为空，所以会使用ADD来添加，但实际上这个fd的监听没有从epoll中移除，导致添加失败，实际上并没有监听EPOLLIN或EPOLLOUT。增加判断，在等待队列为空时也删除对fd的监听，问题解决。

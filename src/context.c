@@ -4,7 +4,7 @@
 
 #include "log.h"
 
-void make_context(Context* context, void (*func)(void*), void* arg) {
+void make_context(Context* context, void (*func)(void*)) {
     //计算栈底位置，令sp指向栈底
     char* sp = context->ss_sp + context->ss_size - sizeof(void*);
     sp = (char*)((unsigned long)sp & -16L);
@@ -15,6 +15,5 @@ void make_context(Context* context, void (*func)(void*), void* arg) {
     //初始化寄存器
     memset(context->regs, 0, sizeof(context->regs));
     context->regs[RSP] = sp;
-    context->regs[RDI] = arg;
     return;
 }

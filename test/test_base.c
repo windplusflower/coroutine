@@ -32,7 +32,7 @@ int main() {
     coroutine_init(&co2, test_func2, "Test2", STACKSIZE);
     start_eventloop();
     while (finished < 2) coroutine_yield();
-    coroutine_init(&co3, test_func2, "Test3", STACKSIZE);
+    coroutine_init(&co3, test_func3, "Test3", STACKSIZE);
     coroutine_resume(&co3);
     printf("Main: Coroutine3 suspended.\n");
     coroutine_resume(&co3);
