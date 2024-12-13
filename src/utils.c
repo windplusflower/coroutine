@@ -1,5 +1,6 @@
 #include "utils.h"
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -24,6 +25,7 @@ void log_set_level_from_env() {
     }
 }
 
+//小根堆
 Heap *heap_create(int capacity) {
     Heap *heap = (Heap *)malloc(sizeof(Heap));
     heap->size = 0;
@@ -37,7 +39,7 @@ void heap_free(Heap *heap) {
         free(heap);
     }
 }
-void heap_push(Heap *heap, int weight, void *data) {
+void heap_push(Heap *heap, long long weight, void *data) {
     if (heap->size == heap->capacity) {
         heap->capacity *= 2;
         heap->nodes = (HeapNode *)realloc(heap->nodes, heap->capacity * sizeof(HeapNode));
@@ -47,7 +49,6 @@ void heap_push(Heap *heap, int weight, void *data) {
     heap->nodes[i].w = weight;
     heap->nodes[i].data = data;
 
-    // 上浮操作，保持堆的性质
     while (i > 1 && heap->nodes[i].w < heap->nodes[i >> 1].w) {
         HeapNode tmp = heap->nodes[i];
         heap->nodes[i] = heap->nodes[i >> 1];
@@ -59,18 +60,14 @@ HeapNode *heap_top(Heap *heap) {
     if (heap->size > 0) {
         return &heap->nodes[1];
     }
-    return NULL;  // 堆为空时返回 NULL
+    return NULL;
 }
-HeapNode *heap_pop(Heap *heap) {
-    if (heap->size == 0) {
-        return NULL;
-    }
+HeapNode heap_pop(Heap *heap) {
+    assert(heap->size > 0);
 
-    // 交换堆顶和最后一个元素
-    HeapNode *minNode = &heap->nodes[1];
+    HeapNode minNode = heap->nodes[1];
     heap->nodes[1] = heap->nodes[heap->size--];
 
-    // 堆化操作
     heap_pushdown(heap, 1);
 
     return minNode;
@@ -80,7 +77,6 @@ void heap_pushdown(Heap *heap, int p) {
     int left = 2 * p;
     int right = 2 * p + 1;
 
-    // 找到最小值的节点
     if (left < heap->size && heap->nodes[left].w < heap->nodes[smallest].w) {
         smallest = left;
     }
@@ -88,11 +84,35 @@ void heap_pushdown(Heap *heap, int p) {
         smallest = right;
     }
 
-    // 如果最小值不是当前节点，交换并递归堆化
     if (smallest != p) {
         HeapNode tmp = heap->nodes[p];
         heap->nodes[p] = heap->nodes[smallest];
         heap->nodes[smallest] = tmp;
         heap_pushdown(heap, smallest);
     }
+}
+
+bool heap_isempty(Heap *heap) {
+    return heap->size == 0;
+}
+
+//超时
+void set_timeout(struct timeval *dest, struct timeval *src) {
+    *dest = *src;
+    dest->tv_usec += 1000;
+}
+
+int get_timeout(struct timeval *t) {
+    return t->tv_sec * 1000 + t->tv_usec / 1000 - 1;
+}
+
+long long get_now() {
+    struct timeval now = {0};
+    gettimeofday(&now, NULL);
+    return now.tv_sec * 1000ll + now.tv_usec / 1000;
+}
+
+//其它
+unsigned long long min(unsigned long long x, unsigned long long y) {
+    return x < y ? x : y;
 }

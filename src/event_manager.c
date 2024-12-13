@@ -18,29 +18,39 @@ EventList* make_empty_list() {
     return res;
 }
 
+EventManager* get_eventmanager() {
+    return &EVENT_MANAGER;
+}
+
 void init_eventmanager() {
     EVENT_MANAGER.active_list = make_empty_list();
     EVENT_MANAGER.epollfd = epoll_create1(0);
     EVENT_MANAGER.event_size = EVENTSIZE;
     EVENT_MANAGER.events = (epoll_event*)malloc(EVENTSIZE * sizeof(epoll_event));
+    EVENT_MANAGER.time_heap = heap_create(1024);
     log_debug("Event manager init finished");
 }
 
 EventNode* make_node(Coroutine* co) {
     EventNode* res = (EventNode*)calloc(1, sizeof(EventNode));
     res->co = co;
+    res->valid = 1;
+    res->free_times = 1;
     return res;
 }
 
 //不需要释放co指向的内存，因为会转移这块内存的所有权，它之后还要用到，在协程结束时才由调度器销毁。
 void free_node(EventNode* node) {
-    free(node);
+    node->free_times--;
+    assert(node->free_times >= 0);
+    if (node->free_times == 0) free(node);
 }
 
-void push_back(EventList* list, Coroutine* co) {
+EventNode* push_back(EventList* list, Coroutine* co) {
     EventNode* node = make_node(co);
     list->tail->next = node;
     list->tail = node;
+    return node;
 }
 
 Coroutine* pop_front(EventList* list) {
@@ -93,7 +103,7 @@ void add_coroutine(Coroutine* co) {
 }
 
 //加入epoll,合并不同协程对相同fd的等待
-void push_in_epoll(Coroutine* co) {
+EventNode* push_in_epoll(Coroutine* co) {
     co->in_epoll = true;
     int fd = co->fd;
     //初次访问，分配内存
@@ -103,50 +113,66 @@ void push_in_epoll(Coroutine* co) {
     }
     //第一次监听该fd,直接添加进epoll。
     if (is_emptylist(EVENT_MANAGER.waiting_co[fd])) {
-        push_back(EVENT_MANAGER.waiting_co[fd], co);
         EVENT_MANAGER.flags[fd]->events = co->event->events;
         EVENT_MANAGER.flags[fd]->data.fd = fd;
         epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_ADD, fd, EVENT_MANAGER.flags[fd]);
-        return;
+        return push_back(EVENT_MANAGER.waiting_co[fd], co);
     }
-    push_back(EVENT_MANAGER.waiting_co[fd], co);
+
     //已经监听了fd,且需要监听的事件是已监听事件的子集，无需操作epoll
-    if ((EVENT_MANAGER.flags[fd]->events & co->event->events) == co->event->events) return;
+    if ((EVENT_MANAGER.flags[fd]->events & co->event->events) == co->event->events)
+        return push_back(EVENT_MANAGER.waiting_co[fd], co);
     //剩下的就是已经监听了fd,且需要监听的事件至少有一部分没有监听
     EVENT_MANAGER.flags[fd]->events |= co->event->events;
     epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_MOD, fd, EVENT_MANAGER.flags[fd]);
+    return push_back(EVENT_MANAGER.waiting_co[fd], co);
 }
 
-//参数分别为：等待的事件；超时时间（毫秒）
+//参数分别为：等待的事件
 //这个函数只由库内的函数调用，保证event会传fd
-//超时相关暂未实现
-void wait_event(epoll_event* event, unsigned int timeout) {
+//超时时间不需要在各hook函数中计算作为参数传递，而是在此函数统一处理
+//返回是否成功等到事件
+bool wait_event(epoll_event* event) {
     Coroutine* co = get_current_coroutine();
+    unsigned int timeout = -1;
     int fd = event->data.fd;
+    if (event->events & EPOLLIN)
+        timeout = min(timeout, get_timeout(&EVENT_MANAGER.recv_timeout[fd]));
+    if (event->events & EPOLLOUT)
+        timeout = min(timeout, get_timeout(&EVENT_MANAGER.send_timeout[fd]));
     event->data.ptr = co;
     co->fd = fd;
     co->event = event;
-    push_in_epoll(co);
-    log_debug("%s wait event", co->name);
+    EventNode* node = push_in_epoll(co);
+    if (timeout != -1) {
+        node->free_times = 2;
+        heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
+    }
+    log_debug("%s wait event(%dms) and yield", co->name, timeout);
     // add_event是由重写的IO调用的，因此需要yield，当描述符可用时由调度器唤醒。
     coroutine_yield();
+    bool res = co->timeout ^ 1;
+    co->timeout = 0;
+    return res;
 }
 
-//唤醒收到响应的协程，加入执行队列
+//唤醒收到响应的协程和超时的协程，加入执行队列
 //这里不能等执行队列为空时才调用，因为可能有的协程是在忙等待,此时执行队列永远不会空
 void awake() {
+    //把收到响应的进程加入执行队列
     int nfds = epoll_wait(EVENT_MANAGER.epollfd, EVENT_MANAGER.events, EVENT_MANAGER.event_size, 0);
     if (nfds <= 0) return;
     epoll_event* events = EVENT_MANAGER.events;
-    Coroutine* co;
     for (int i = 0; i < nfds; i++) {
         int fd = events[i].data.fd;
-        log_debug("fd:%d", fd);
         uint32_t flag = events[i].events;
         EventNode* p = EVENT_MANAGER.waiting_co[fd]->head;
         bool find_event = false;
         while (p->next) {
-            if ((p->next->co->event->events & flag) != 0) {
+            if (!p->next->valid) {
+                //已经因为超时被移除，直接跳过
+                remove_next(EVENT_MANAGER.waiting_co[fd], p);
+            } else if ((p->next->co->event->events & flag) != 0) {
                 p->next->co->event->events = flag;
                 push_back(EVENT_MANAGER.active_list, p->next->co);
                 p->next->co->in_epoll = false;
@@ -168,6 +194,23 @@ void awake() {
         else
             //否则不监听
             epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_DEL, fd, NULL);
+    }
+
+    //把超时的进程加入执行队列
+    long long now = get_now();
+    EventNode* node;
+    while (!heap_isempty(EVENT_MANAGER.time_heap) && now > heap_top(EVENT_MANAGER.time_heap)->w) {
+        node = heap_pop(EVENT_MANAGER.time_heap).data;
+        //被加入超时队列的初始free_times一定是2
+        //如果这里为1就说明已经在epoll中收到事件并唤醒了
+        if (node->free_times == 1) {
+            free_node(node);
+            continue;
+        }
+        node->valid = 0;
+        node->co->timeout = 1;
+        free_node(node);
+        add_coroutine(node->co);
     }
 }
 void event_loop() {

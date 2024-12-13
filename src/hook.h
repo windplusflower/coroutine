@@ -16,4 +16,6 @@ ssize_t co_recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *add
 ssize_t co_send(int fd, const void *buf, size_t n, int flags);
 ssize_t co_recv(int fd, void *buf, size_t n, int flags);
 int co_accept(int fd, struct sockaddr *addr, socklen_t *addrlen);
+int co_setsockopt(int fd, int level, int option_name, const void *option_value,
+                  socklen_t option_len);
 #endif

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -50,8 +51,12 @@ void send_coroutine(void* arg) {
             perror("Send failed");
             break;
         }
-        sleep(1);
-        //这里的sleep不会让出cpu，只是为了让输出慢一点，不刷屏。
+        //每三秒发送一次消息
+        //因为sleep还是阻塞模式，因此需要手动yield
+        for (int i = 0; i < 30; i++) {
+            usleep(100 * 1000);
+            coroutine_yield();
+        }
     }
 
     close(client_sock);
@@ -78,16 +83,24 @@ void recv_coroutine(void* arg) {
         return;
     }
     printf("connect success\n");
+    //设置超时时间为0.5秒
+    struct timeval rcv_timeout;
+    rcv_timeout.tv_sec = 0;
+    rcv_timeout.tv_usec = 500 * 1000;
+    if (co_setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, &rcv_timeout, sizeof(rcv_timeout)) <
+        0) {
+        perror("setsockopt SO_RCVTIMEO");
+        close(client_sock);
+        return;
+    }
     while (1) {
         int bytes_received = co_recv(client_sock, buffer, BUFFER_SIZE, 0);
         if (bytes_received < 0) {
             perror("Receive failed");
-            break;
+            continue;
         }
         buffer[bytes_received] = '\0';
         printf("Received: %s\n", buffer);
-        //这里的sleep不会让出cpu，只是为了让输出慢一点，不刷屏。
-        sleep(1);
     }
 
     close(client_sock);
@@ -105,21 +118,3 @@ int main() {
     while (1) coroutine_yield();
     return 0;
 }
-/*正确输出：
-
-Server is listening on port 8080
-connect success
-accept success
-Received: Message from server thread(1733905856)
-Received: Message from server thread(1733905857)
-Received: Message from server thread(1733905859)
-Received: Message from server thread(1733905861)
-Received: Message from server thread(1733905863)
-Received: Message from server thread(1733905865)
-Received: Message from server thread(1733905867)
-Received: Message from server thread(1733905869)
-Received: Message from server thread(1733905871)
-Received: Message from server thread(1733905873)
-Received: Message from server thread(1733905875)
-...
-*/

@@ -86,6 +86,7 @@ void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack
     co->stack = malloc(stack_size);
     co->auto_schedule = true;
     co->in_epoll = false;
+    co->timeout = false;
 
     co->context.ss_sp = co->stack;
     co->context.ss_size = stack_size;
