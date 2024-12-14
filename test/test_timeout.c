@@ -83,10 +83,10 @@ void recv_coroutine(void* arg) {
         return;
     }
     printf("connect success\n");
-    //设置超时时间为0.5秒
+    //设置超时时间为1秒
     struct timeval rcv_timeout;
-    rcv_timeout.tv_sec = 0;
-    rcv_timeout.tv_usec = 500 * 1000;
+    rcv_timeout.tv_sec = 1;
+    rcv_timeout.tv_usec = 0;
     if (co_setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, &rcv_timeout, sizeof(rcv_timeout)) <
         0) {
         perror("setsockopt SO_RCVTIMEO");
@@ -118,3 +118,20 @@ int main() {
     while (1) coroutine_yield();
     return 0;
 }
+/*正确输出：发每隔三秒一次，收超时一秒，所以应该是成功一次超时两次交替
+Server is listening on port 4926
+connect success
+accept success
+Received: Message from server thread(1734156641)
+Receive failed: Resource temporarily unavailable
+Receive failed: Resource temporarily unavailable
+Received: Message from server thread(1734156644)
+Receive failed: Resource temporarily unavailable
+Receive failed: Resource temporarily unavailable
+Received: Message from server thread(1734156647)
+Receive failed: Resource temporarily unavailable
+Receive failed: Resource temporarily unavailable
+Received: Message from server thread(1734156650)
+Receive failed: Resource temporarily unavailable
+...
+*/

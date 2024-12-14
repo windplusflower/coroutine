@@ -161,7 +161,6 @@ bool wait_event(epoll_event* event) {
 void awake() {
     //把收到响应的进程加入执行队列
     int nfds = epoll_wait(EVENT_MANAGER.epollfd, EVENT_MANAGER.events, EVENT_MANAGER.event_size, 0);
-    if (nfds <= 0) return;
     epoll_event* events = EVENT_MANAGER.events;
     for (int i = 0; i < nfds; i++) {
         int fd = events[i].data.fd;
@@ -210,6 +209,7 @@ void awake() {
         node->valid = 0;
         node->co->timeout = 1;
         free_node(node);
+        log_debug("%s time out", node->co->name);
         add_coroutine(node->co);
     }
 }
