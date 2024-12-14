@@ -43,17 +43,13 @@ typedef struct WrappedArg {
 
 __thread static CoroutineEnv ENV;
 
-void show_call_stack();
-
 void start_eventloop();
-
-void env_push(Coroutine *co);
-Coroutine *env_pop();
 
 void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack_size);
 void coroutine_resume(Coroutine *co);
 void coroutine_yield();
 void coroutine_free(Coroutine *co);
+
 Coroutine *get_current_coroutine();
 
 #endif

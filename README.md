@@ -41,7 +41,7 @@ void coroutine_free(Coroutine *co);
 - **24.12.10**: 修复epoll相关bug，实现write调用。
 - **24.12.11**: 实现sendto、recvfrom、send、recv、accept。
 - **24.12.12**: 修复创建协程传递的参数不能为NULL的BUG，修复epoll相关bug，添加小根堆的实现，为实现超时机制做准备。完善readme文档介绍。
-- **24.12.13**: 添加超时机制。
+- **24.12.14**: 重构wait_event，添加之前系统调用的超时机制，添加sleep和usleep。
 
 ## Debug 记录
 ### 2024.11.25~2024.11.26

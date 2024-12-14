@@ -41,14 +41,7 @@ __thread static EventManager EVENT_MANAGER;
 void init_eventmanager();
 EventManager* get_eventmanager();
 
-EventNode* make_empty_node();
-EventNode* make_node(Coroutine*);
-EventNode* push_back(EventList*, Coroutine*);
-Coroutine* pop_front(EventList*);
-bool is_emptylist(EventList*);
-void show_list(EventList*);
-
-bool wait_event(epoll_event*);
+bool wait_event(epoll_event* event, int timeout);
 void add_coroutine(Coroutine* co);
 
 void event_loop();

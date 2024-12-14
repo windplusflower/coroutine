@@ -43,6 +43,8 @@ EventNode* make_node(Coroutine* co) {
 void free_node(EventNode* node) {
     node->free_times--;
     assert(node->free_times >= 0);
+    //只要释放一次后，就一定是无效的了
+    node->valid = 0;
     if (node->free_times == 0) free(node);
 }
 
@@ -104,6 +106,7 @@ void add_coroutine(Coroutine* co) {
 
 //加入epoll,合并不同协程对相同fd的等待
 EventNode* push_in_epoll(Coroutine* co) {
+    if (co->fd < 0) return NULL;
     co->in_epoll = true;
     int fd = co->fd;
     //初次访问，分配内存
@@ -128,25 +131,26 @@ EventNode* push_in_epoll(Coroutine* co) {
     return push_back(EVENT_MANAGER.waiting_co[fd], co);
 }
 
-//参数分别为：等待的事件
+//参数分别为：等待的事件；等待的事件(ms)
 //这个函数只由库内的函数调用，保证event会传fd
-//超时时间不需要在各hook函数中计算作为参数传递，而是在此函数统一处理
 //返回是否成功等到事件
-bool wait_event(epoll_event* event) {
+bool wait_event(epoll_event* event, int timeout) {
     Coroutine* co = get_current_coroutine();
-    unsigned int timeout = -1;
-    int fd = event->data.fd;
-    if (event->events & EPOLLIN)
-        timeout = min(timeout, get_timeout(&EVENT_MANAGER.recv_timeout[fd]));
-    if (event->events & EPOLLOUT)
-        timeout = min(timeout, get_timeout(&EVENT_MANAGER.send_timeout[fd]));
-    event->data.ptr = co;
-    co->fd = fd;
-    co->event = event;
-    EventNode* node = push_in_epoll(co);
-    if (timeout != -1) {
-        node->free_times = 2;
+    if (event == NULL && timeout != -1) {
+        EventNode* node = make_node(co);
+        co->in_epoll = true;
         heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
+    } else {
+        int fd = event->data.fd;
+        event->data.ptr = co;
+        co->fd = fd;
+        co->event = event;
+        EventNode* node = push_in_epoll(co);
+        if (timeout != -1) {
+            //同时加入超时队列和等待队列，所以需要释放两次
+            node->free_times = 2;
+            heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
+        }
     }
     log_debug("%s wait event(%dms) and yield", co->name, timeout);
     // add_event是由重写的IO调用的，因此需要yield，当描述符可用时由调度器唤醒。
@@ -200,16 +204,15 @@ void awake() {
     EventNode* node;
     while (!heap_isempty(EVENT_MANAGER.time_heap) && now > heap_top(EVENT_MANAGER.time_heap)->w) {
         node = heap_pop(EVENT_MANAGER.time_heap).data;
-        //被加入超时队列的初始free_times一定是2
-        //如果这里为1就说明已经在epoll中收到事件并唤醒了
-        if (node->free_times == 1) {
+        // valid为0，说明已经在epoll中被释放过了
+        if (!node->valid) {
             free_node(node);
             continue;
         }
-        node->valid = 0;
         node->co->timeout = 1;
         free_node(node);
         log_debug("%s time out", node->co->name);
+        node->co->in_epoll = false;
         add_coroutine(node->co);
     }
 }

@@ -14,7 +14,8 @@ ssize_t co_read(int fd, void *buf, size_t nbyte) {
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
     event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
-    if (!wait_event(&event)) {
+
+    if (!wait_event(&event, get_timeout(&get_eventmanager()->recv_timeout[fd]))) {
         errno = EAGAIN;
         return -1;
     }
@@ -31,7 +32,7 @@ ssize_t co_write(int fd, const void *buf, size_t nbyte) {
     event.events = EPOLLOUT | EPOLLERR | EPOLLHUP;
     int ret;
     while (1) {
-        if (!wait_event(&event)) {
+        if (!wait_event(&event, get_timeout(&get_eventmanager()->send_timeout[fd]))) {
             errno = EAGAIN;
             return -1;
         }
@@ -58,7 +59,7 @@ ssize_t co_sendto(int fd, const void *buf, size_t n, int flags, const struct soc
     event.events = EPOLLOUT | EPOLLERR | EPOLLHUP;
     int ret;
     while (1) {
-        if (!wait_event(&event)) {
+        if (!wait_event(&event, get_timeout(&get_eventmanager()->send_timeout[fd]))) {
             errno = EAGAIN;
             return -1;
         }
@@ -83,7 +84,7 @@ ssize_t co_recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *add
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
     event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
-    if (!wait_event(&event)) {
+    if (!wait_event(&event, get_timeout(&get_eventmanager()->recv_timeout[fd]))) {
         errno = EAGAIN;
         return -1;
     }
@@ -99,7 +100,7 @@ ssize_t co_send(int fd, const void *buf, size_t n, int flags) {
     event.events = EPOLLOUT | EPOLLERR | EPOLLHUP;
     int ret;
     while (1) {
-        if (!wait_event(&event)) {
+        if (!wait_event(&event, get_timeout(&get_eventmanager()->send_timeout[fd]))) {
             errno = EAGAIN;
             return -1;
         }
@@ -123,7 +124,7 @@ ssize_t co_recv(int fd, void *buf, size_t n, int flags) {
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
     event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
-    if (!wait_event(&event)) {
+    if (!wait_event(&event, get_timeout(&get_eventmanager()->recv_timeout[fd]))) {
         errno = EAGAIN;
         return -1;
     }
@@ -137,7 +138,7 @@ int co_accept(int fd, struct sockaddr *addr, socklen_t *addrlen) {
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
     event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
-    if (!wait_event(&event)) {
+    if (!wait_event(&event, get_timeout(&get_eventmanager()->recv_timeout[fd]))) {
         errno = EAGAIN;
         return -1;
     }
@@ -159,4 +160,11 @@ int co_setsockopt(int fd, int level, int option_name, const void *option_value,
         }
     }
     return res;
+}
+
+void co_sleep(int seconds) {
+    wait_event(NULL, seconds * 1000);
+}
+void co_usleep(int useconds) {
+    wait_event(NULL, useconds / 1000);
 }
