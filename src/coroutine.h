@@ -49,6 +49,7 @@ void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack
 void coroutine_resume(Coroutine *co);
 void coroutine_yield();
 void coroutine_free(Coroutine *co);
+void coroutine_finish();
 
 Coroutine *get_current_coroutine();
 

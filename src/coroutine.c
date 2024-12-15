@@ -72,9 +72,7 @@ Coroutine *main_coroutine_init() {
 void func_wrapper() {
     Coroutine *co = get_current_coroutine();
     co->func(co->arg);
-    co->status = COROUTINE_DEAD;
-    log_debug("%s finished and yield", co->name);
-    coroutine_yield();
+    coroutine_finish();
 }
 void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack_size) {
     eventloop_init();
@@ -91,9 +89,9 @@ void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack
     co->context.ss_sp = co->stack;
     co->context.ss_size = stack_size;
     make_context(&co->context, func_wrapper);
-    add_coroutine(co);
     co->name = arg;  //仅作调试用，用arg来辨识不同协程
     if (co->name == NULL) co->name = "NoName";
+    add_coroutine(co);
 }
 
 void start_eventloop() {
@@ -132,7 +130,17 @@ void coroutine_yield() {
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
 
+void coroutine_finish() {
+    show_call_stack();
+    Coroutine *current_coroutine = env_pop();
+    Coroutine *upcoming_coroutine = get_current_coroutine();
+    current_coroutine->status = COROUTINE_DEAD;
+    log_debug("%s finished and yield to %s", current_coroutine->name, upcoming_coroutine->name);
+    swap_context(&current_coroutine->context, &upcoming_coroutine->context);
+}
+
 void coroutine_free(Coroutine *co) {
     free(co->stack);
     co->stack = NULL;
+    co->status = COROUTINE_DEAD;
 }
