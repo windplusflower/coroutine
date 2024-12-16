@@ -73,7 +73,7 @@ void recv_coroutine(void* arg) {
     server_addr.sin_port = htons(PORT);
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
-    if (connect(client_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    if (co_connect(client_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
         perror("Connection failed");
         return;
     }

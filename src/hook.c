@@ -1,5 +1,6 @@
 #include "hook.h"
 
+#include <asm-generic/errno.h>
 #include <sys/epoll.h>
 #include <unistd.h>
 
@@ -138,12 +139,41 @@ int co_accept(int fd, struct sockaddr *addr, socklen_t *addrlen) {
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
     event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
-    if (!wait_event(&event, get_timeout(&get_eventmanager()->recv_timeout[fd]))) {
-        errno = EAGAIN;
-        return -1;
-    }
+    // accept不受setsockopt设置的超时时间影响
+    wait_event(&event, -1);
     return accept(fd, addr, addrlen);
 }
+
+int co_connect(int fd, const struct sockaddr *address, socklen_t address_len) {
+    int flag = fcntl(fd, F_GETFL);
+    if (flag & O_NONBLOCK) return connect(fd, address, address_len);
+
+    fcntl(fd, F_SETFL, flag | O_NONBLOCK);
+    int ret = connect(fd, address, address_len);
+    fcntl(fd, F_SETFL, flag);
+
+    if (!(ret < 0 && errno == EINPROGRESS)) {
+        return ret;
+    }
+
+    epoll_event event;
+    event.data.fd = fd;
+    event.events = EPOLLOUT | EPOLLERR | EPOLLHUP;
+    // linux默认超时时间为75s
+    if (!wait_event(&event, 75000)) {
+        //超时
+        errno = ETIMEDOUT;
+        return -1;
+    }
+    //这里使用阻塞的connect，因为EPOLLOUT | EPOLLERR | EPOLLHUP
+    //时不会阻塞，并且能给用户正确的返回值和errno
+    ret = connect(fd, address, address_len);
+    //连接成功
+    if (ret == -1 && errno == EISCONN) return 0;
+    //出现错误
+    return ret;
+}
+
 int co_setsockopt(int fd, int level, int option_name, const void *option_value,
                   socklen_t option_len) {
     int res = setsockopt(fd, level, option_name, option_value, option_len);
