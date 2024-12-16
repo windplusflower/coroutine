@@ -22,12 +22,20 @@ void show_call_stack() {
 }
 
 void env_push(Coroutine *co) {
-    assert(ENV.size < 128);
+    if (ENV.size >= ENV.capacity) {
+        ENV.capacity *= 2;
+        ENV.call_stack = realloc(ENV.call_stack, ENV.capacity * sizeof(Coroutine *));
+    }
     ENV.call_stack[ENV.size++] = co;
 }
 
 Coroutine *env_pop() {
     assert(ENV.size > 0);
+    //有大量空余时释放内存，最少减到STACKSEPTH
+    if (ENV.size * 4 < ENV.capacity && ENV.capacity > STACKDEPTH) {
+        ENV.capacity /= 2;
+        ENV.call_stack = realloc(ENV.call_stack, ENV.capacity * sizeof(Coroutine *));
+    }
     return ENV.call_stack[--ENV.size];
 }
 
@@ -44,6 +52,9 @@ void eventloop_init() {
 
     ENV.eventloop_coroutine = (Coroutine *)malloc(sizeof(Coroutine));
     ENV.size = 0;
+    ENV.capacity = STACKDEPTH;
+    ENV.call_stack = (Coroutine **)malloc(STACKDEPTH * sizeof(Coroutine *));
+
     Coroutine *co = ENV.eventloop_coroutine;
     co->stack_size = STACKSIZE;
     co->stack = malloc(STACKSIZE);
@@ -52,6 +63,7 @@ void eventloop_init() {
     co->context.ss_sp = co->stack;
     co->context.ss_size = STACKSIZE;
     make_context(&co->context, event_loop);
+
     log_debug("eventloop init finished");
 }
 Coroutine *main_coroutine_init() {

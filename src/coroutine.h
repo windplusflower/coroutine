@@ -1,12 +1,14 @@
 #ifndef COROUTINE_H
 #define COROUTINE_H
 
-#include "context.h"
-#define STACKSIZE 1024 * 128
-
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/ucontext.h>
+
+#include "context.h"
+
+#define STACKSIZE 1024 * 128
+#define STACKDEPTH 128
 
 typedef enum {
     COROUTINE_READY,
@@ -31,8 +33,8 @@ typedef struct Coroutine {
 } Coroutine;
 
 typedef struct CoroutineEnv {
-    Coroutine *call_stack[128];
-    int size;
+    Coroutine **call_stack;
+    int size, capacity;
     Coroutine *eventloop_coroutine;
 } CoroutineEnv;
 

@@ -15,7 +15,7 @@ ssize_t co_read(int fd, void *buf, size_t nbyte) {
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
     event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
-
+    //如果fd不是套接字，那么get_timeout会返回-1，下面几个函数同理
     if (!wait_event(&event, get_timeout(&get_eventmanager()->recv_timeout[fd]))) {
         errno = EAGAIN;
         return -1;
