@@ -1,11 +1,14 @@
+
 #include <errno.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <unistd.h>
 
-#include "coroutine.h"
-#include "hook.h"
-#include "log.h"
-#include "utils.h"
+// #include "hook.h"
+// #include "coroutine.h"
+// #include "log.h"
+// #include "utils.h"
+#include "coheader.h"
 int fd[2];
 void read_pipe(void *) {
     int buf[1000];
@@ -27,9 +30,9 @@ void write_pipe(void *) {
 int main() {
     log_set_level_from_env();
     pipe(fd);
-    Coroutine rd, wr;
-    coroutine_init(&rd, read_pipe, "readpipe", STACKSIZE);
-    coroutine_init(&wr, write_pipe, "writepipe", STACKSIZE);
+    Coroutine *rd = malloc(514), *wr = malloc(514);
+    coroutine_init(rd, read_pipe, "readpipe", 0);
+    coroutine_init(wr, write_pipe, "writepipe", 0);
     start_eventloop();
     while (1) coroutine_yield();
 }

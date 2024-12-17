@@ -1,13 +1,88 @@
 #include "hook.h"
 
-#include <asm-generic/errno.h>
+#include <dlfcn.h>
+#include <errno.h>
 #include <sys/epoll.h>
-#include <unistd.h>
 
 #include "event_manager.h"
 #include "log.h"
 #include "utils.h"
+/*****************************************************************************/
+typedef ssize_t (*read_t)(int fildes, void *buf, size_t nbyte);
+typedef ssize_t (*write_t)(int fildes, const void *buf, size_t nbyte);
 
+typedef ssize_t (*sendto_t)(int socket, const void *message, size_t length, int flags,
+                            const struct sockaddr *dest_addr, socklen_t dest_len);
+
+typedef ssize_t (*recvfrom_t)(int socket, void *buffer, size_t length, int flags,
+                              struct sockaddr *address, socklen_t *address_len);
+
+typedef ssize_t (*send_t)(int socket, const void *buffer, size_t length, int flags);
+typedef ssize_t (*recv_t)(int socket, void *buffer, size_t length, int flags);
+
+typedef int (*accept_t)(int fd, struct sockaddr *addr, socklen_t *addrlen);
+typedef int (*connect_t)(int socket, const struct sockaddr *address, socklen_t address_len);
+typedef int (*setsockopt_t)(int socket, int level, int option_name, const void *option_value,
+                            socklen_t option_len);
+typedef int (*poll_t)(struct pollfd fds[], nfds_t nfds, int timeout);
+
+typedef void (*sleep_t)(unsigned int seconds);
+typedef void (*usleep_t)(useconds_t useconds);
+/**********************************************************************************/
+static read_t sys_read;
+static write_t sys_write;
+
+static sendto_t sys_sendto;
+static recvfrom_t sys_recvfrom;
+
+static send_t sys_send;
+static recv_t sys_recv;
+
+static accept_t sys_accept;
+static connect_t sys_connect;
+static setsockopt_t sys_setsockopt;
+static poll_t sys_poll;
+
+static sleep_t sys_sleep;
+static usleep_t sys_usleep;
+/***********************************************************************************/
+
+__thread static bool is_hooked = false;
+
+void init_hook() {
+    static bool has_inited = false;
+    if (has_inited) return;
+    has_inited = true;
+
+    sys_read = (read_t)dlsym(RTLD_NEXT, "read");
+    sys_write = (write_t)dlsym(RTLD_NEXT, "write");
+
+    sys_sendto = (sendto_t)dlsym(RTLD_NEXT, "sendto");
+    sys_recvfrom = (recvfrom_t)dlsym(RTLD_NEXT, "recvfrom");
+
+    sys_send = (send_t)dlsym(RTLD_NEXT, "send");
+    sys_recv = (recv_t)dlsym(RTLD_NEXT, "recv");
+
+    sys_accept = (accept_t)dlsym(RTLD_NEXT, "accept");
+    sys_connect = (connect_t)dlsym(RTLD_NEXT, "connect");
+    sys_setsockopt = (setsockopt_t)dlsym(RTLD_NEXT, "setsockopt");
+    sys_poll = (poll_t)dlsym(RTLD_NEXT, "poll");
+
+    sys_sleep = (sleep_t)dlsym(RTLD_NEXT, "sleep");
+    sys_usleep = (usleep_t)dlsym(RTLD_NEXT, "usleep");
+}
+
+void enable_hook() {
+    is_hooked = true;
+}
+
+void unable_hook() {
+    is_hooked = false;
+}
+
+bool is_hook_enabled() {
+    return is_hooked;
+}
 ssize_t co_read(int fd, void *buf, size_t nbyte) {
     int flag = fcntl(fd, F_GETFL);
     if (flag & O_NONBLOCK) return read(fd, buf, nbyte);
@@ -192,9 +267,90 @@ int co_setsockopt(int fd, int level, int option_name, const void *option_value,
     return res;
 }
 
-void co_sleep(int seconds) {
+unsigned int co_sleep(unsigned int seconds) {
     wait_event(NULL, seconds * 1000);
+    return 0;
 }
-void co_usleep(int useconds) {
+int co_usleep(useconds_t useconds) {
     wait_event(NULL, useconds / 1000);
+    return 0;
+}
+
+/***********************************************************************************/
+ssize_t read(int fd, void *buf, size_t nbyte) {
+    if (is_hook_enabled())
+        return co_read(fd, buf, nbyte);
+    else
+        return sys_read(fd, buf, nbyte);
+}
+ssize_t write(int fd, const void *buf, size_t nbyte) {
+    if (is_hook_enabled())
+        return co_write(fd, buf, nbyte);
+    else
+        return sys_write(fd, buf, nbyte);
+}
+
+ssize_t sendto(int fd, const void *buf, size_t n, int flags, const struct sockaddr *addr,
+               socklen_t addrlen) {
+    if (is_hook_enabled())
+        return co_sendto(fd, buf, n, flags, addr, addrlen);
+    else
+        return sys_sendto(fd, buf, n, flags, addr, addrlen);
+}
+
+ssize_t recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *addr,
+                 socklen_t *addrlen) {
+    if (is_hook_enabled())
+        return co_recvfrom(fd, buf, n, flags, addr, addrlen);
+    else
+        return sys_recvfrom(fd, buf, n, flags, addr, addrlen);
+}
+
+ssize_t send(int fd, const void *buf, size_t n, int flags) {
+    if (is_hook_enabled())
+        return co_send(fd, buf, n, flags);
+    else
+        return sys_send(fd, buf, n, flags);
+}
+
+ssize_t recv(int fd, void *buf, size_t n, int flags) {
+    if (is_hook_enabled())
+        return co_recv(fd, buf, n, flags);
+    else
+        return sys_recv(fd, buf, n, flags);
+}
+
+int accept(int fd, struct sockaddr *addr, socklen_t *addrlen) {
+    if (is_hook_enabled())
+        return co_accept(fd, addr, addrlen);
+    else
+        return sys_accept(fd, addr, addrlen);
+}
+
+int connect(int fd, const struct sockaddr *address, socklen_t address_len) {
+    if (is_hook_enabled())
+        return co_connect(fd, address, address_len);
+    else
+        return sys_connect(fd, address, address_len);
+}
+
+int setsockopt(int fd, int level, int option_name, const void *option_value, socklen_t option_len) {
+    if (is_hook_enabled())
+        return co_setsockopt(fd, level, option_name, option_value, option_len);
+    else
+        return sys_setsockopt(fd, level, option_name, option_value, option_len);
+}
+
+unsigned int sleep(unsigned int seconds) {
+    if (is_hook_enabled())
+        sys_sleep(seconds);
+    else
+        sys_sleep(seconds);
+}
+
+int usleep(useconds_t useconds) {
+    if (is_hook_enabled())
+        sys_usleep(useconds);
+    else
+        sys_usleep(useconds);
 }

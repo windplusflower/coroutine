@@ -20,6 +20,7 @@ void testing_read_suspend(void *) {
 }
 int main() {
     log_set_level_from_env();
+    // enable_hook();
     log_debug("start");
     Coroutine reading, suspending;
     //参数并不使用，只是便于调试

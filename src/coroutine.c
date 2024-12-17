@@ -10,6 +10,7 @@
 #include "context.h"
 #include "event_manager.h"
 #include "log.h"
+#include "hook.h"
 
 void show_call_stack() {
     char buf[1024];
@@ -49,6 +50,7 @@ void eventloop_init() {
     if (has_inited) return;
     has_inited = true;
     init_eventmanager();
+    init_hook();
 
     ENV.eventloop_coroutine = (Coroutine *)malloc(sizeof(Coroutine));
     ENV.size = 0;
