@@ -1,33 +1,28 @@
-#include "coroutine.h"
-#include "hook.h"
-#include "log.h"
-#include "utils.h"
+#include "coheader.h"
 
 char buf[1024];
-void read_test(void *) {
+void read_test(const void *) {
     while (1) {
         printf("please input:\n");
-        co_read(0, buf, 1024);
+        read(0, buf, 1024);
         printf("Read from cmd:%s\n", buf);
     }
 }
-void testing_read_suspend(void *) {
+void testing_read_suspend(const void *) {
     while (1) {
         printf("read was not running now!\n");
-        sleep(1);
-        coroutine_yield();
+        co_sleep(1);
     }
 }
 int main() {
     log_set_level_from_env();
-    // enable_hook();
-    log_debug("start");
-    Coroutine reading, suspending;
+    enable_hook();
+    coroutine_t reading, suspending;
     //参数并不使用，只是便于调试
-    coroutine_init(&reading, read_test, "read_test", STACKSIZE);
-    coroutine_init(&suspending, testing_read_suspend, "testing_suspend", STACKSIZE);
-    start_eventloop();
-    while (1) coroutine_yield();
+    reading = coroutine_init(read_test, "read_test", 0);
+    suspending = coroutine_init(testing_read_suspend, "testing_suspend", 0);
+    coroutine_join(reading);
+    coroutine_join(suspending);
     return 0;
 }
 /*正确输出：

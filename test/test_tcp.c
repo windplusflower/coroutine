@@ -6,14 +6,12 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "coroutine.h"
-#include "hook.h"
-#include "utils.h"
+#include "coheader.h"
 
 int PORT = 1000;
 #define BUFFER_SIZE 1024
 
-void send_coroutine(void* arg) {
+void send_coroutine(const void* arg) {
     int server_sock;
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
@@ -39,19 +37,18 @@ void send_coroutine(void* arg) {
     }
 
     printf("Server is listening on port %d\n", PORT);
-    if ((client_sock = co_accept(server_sock, (struct sockaddr*)&server_addr, &addr_len)) < 0) {
+    if ((client_sock = accept(server_sock, (struct sockaddr*)&server_addr, &addr_len)) < 0) {
         perror("Accept failed");
         return;
     }
     printf("accept success\n");
     while (1) {
         snprintf(buffer, BUFFER_SIZE, "Message from server thread(%ld)", time(0));
-        if (co_send(client_sock, buffer, strlen(buffer), 0) < 0) {
+        if (send(client_sock, buffer, strlen(buffer), 0) < 0) {
             perror("Send failed");
             break;
         }
-        sleep(1);
-        //这里的sleep不会让出cpu，只是为了让输出慢一点，不刷屏。
+        co_sleep(1);
     }
 
     close(client_sock);
@@ -59,7 +56,7 @@ void send_coroutine(void* arg) {
     return;
 }
 
-void recv_coroutine(void* arg) {
+void recv_coroutine(const void* arg) {
     int client_sock;
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
@@ -73,21 +70,19 @@ void recv_coroutine(void* arg) {
     server_addr.sin_port = htons(PORT);
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
-    if (co_connect(client_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    if (connect(client_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
         perror("Connection failed");
         return;
     }
     printf("connect success\n");
     while (1) {
-        int bytes_received = co_recv(client_sock, buffer, BUFFER_SIZE, 0);
+        int bytes_received = recv(client_sock, buffer, BUFFER_SIZE, 0);
         if (bytes_received < 0) {
             perror("Receive failed");
             break;
         }
         buffer[bytes_received] = '\0';
         printf("Received: %s\n", buffer);
-        //这里的sleep不会让出cpu，只是为了让输出慢一点，不刷屏。
-        sleep(1);
     }
 
     close(client_sock);
@@ -96,30 +91,25 @@ void recv_coroutine(void* arg) {
 
 int main() {
     log_set_level_from_env();
+    enable_hook();
     srand(time(0));
     PORT += rand() % 10000;
-    Coroutine sender, receiver;
-    coroutine_init(&sender, send_coroutine, "sender", STACKSIZE);
-    coroutine_init(&receiver, recv_coroutine, "receiver", STACKSIZE);
-    start_eventloop();
-    while (1) coroutine_yield();
+    coroutine_t sender, receiver;
+    sender = coroutine_init(send_coroutine, "sender", 0);
+    receiver = coroutine_init(recv_coroutine, "receiver", 0);
+    coroutine_join(sender);
+    coroutine_join(receiver);
     return 0;
 }
 /*正确输出：
 
-Server is listening on port 8080
-connect success
+Server is listening on port 5782
 accept success
-Received: Message from server thread(1733905856)
-Received: Message from server thread(1733905857)
-Received: Message from server thread(1733905859)
-Received: Message from server thread(1733905861)
-Received: Message from server thread(1733905863)
-Received: Message from server thread(1733905865)
-Received: Message from server thread(1733905867)
-Received: Message from server thread(1733905869)
-Received: Message from server thread(1733905871)
-Received: Message from server thread(1733905873)
-Received: Message from server thread(1733905875)
+connect success
+Received: Message from server thread(1734509288)
+Received: Message from server thread(1734509289)
+Received: Message from server thread(1734509290)
+Received: Message from server thread(1734509291)
+Received: Message from server thread(1734509292)
 ...
 */

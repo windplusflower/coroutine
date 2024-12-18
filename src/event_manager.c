@@ -224,10 +224,10 @@ void event_loop() {
         if (is_emptylist(EVENT_MANAGER.active_list)) continue;
         Coroutine* co = pop_front(EVENT_MANAGER.active_list);
         if (co->status == COROUTINE_DEAD) {
-            coroutine_free(co);
+            //不需要释放内存，等待join时释放
             continue;
         }
         if (co->auto_schedule == false) continue;
-        coroutine_resume(co);
+        coroutine_resume(co->handle);
     }
 }

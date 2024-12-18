@@ -4,37 +4,34 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-// #include "hook.h"
-// #include "coroutine.h"
-// #include "log.h"
-// #include "utils.h"
 #include "coheader.h"
 int fd[2];
-void read_pipe(void *) {
+void read_pipe(const void *) {
     int buf[1000];
     while (1) {
-        int ret = co_read(fd[0], buf, 1000);
+        int ret = read(fd[0], buf, 1000);
         printf("%d bytes read finished\n", ret);
     }
 }
-void write_pipe(void *) {
+void write_pipe(const void *) {
     int buf[10000];
     int cnt = 0;
     while (1) {
+        //这里要用阻塞的sleep，不然cpu会让给read，导致无法填满管道
         sleep(1);
-        int ret = co_write(fd[1], buf, 10000);
+        int ret = write(fd[1], buf, 10000);
         printf("%d bytes write finished %d\n", ret, cnt);
         cnt++;
     }
 }
 int main() {
     log_set_level_from_env();
+    enable_hook();
     pipe(fd);
-    Coroutine *rd = malloc(514), *wr = malloc(514);
-    coroutine_init(rd, read_pipe, "readpipe", 0);
-    coroutine_init(wr, write_pipe, "writepipe", 0);
-    start_eventloop();
-    while (1) coroutine_yield();
+    coroutine_t rd = coroutine_init(read_pipe, "readpipe", 0);
+    coroutine_t wr = coroutine_init(write_pipe, "writepipe", 0);
+    coroutine_join(rd);
+    coroutine_join(wr);
 }
 /*
 管道缓冲区为65536，第七次写开始管道容量不足，

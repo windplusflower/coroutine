@@ -7,14 +7,12 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "coroutine.h"
-#include "hook.h"
-#include "utils.h"
+#include "coheader.h"
 
 int PORT = 1000;
 #define BUFFER_SIZE 1024
 
-void send_coroutine(void* arg) {
+void send_coroutine(const void* arg) {
     int server_sock;
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
@@ -40,23 +38,19 @@ void send_coroutine(void* arg) {
     }
 
     printf("Server is listening on port %d\n", PORT);
-    if ((client_sock = co_accept(server_sock, (struct sockaddr*)&server_addr, &addr_len)) < 0) {
+    if ((client_sock = accept(server_sock, (struct sockaddr*)&server_addr, &addr_len)) < 0) {
         perror("Accept failed");
         return;
     }
     printf("accept success\n");
     while (1) {
         snprintf(buffer, BUFFER_SIZE, "Message from server thread(%ld)", time(0));
-        if (co_send(client_sock, buffer, strlen(buffer), 0) < 0) {
+        if (send(client_sock, buffer, strlen(buffer), 0) < 0) {
             perror("Send failed");
             break;
         }
-        //每三秒发送一次消息
-        //因为sleep还是阻塞模式，因此需要手动yield
-        for (int i = 0; i < 30; i++) {
-            usleep(100 * 1000);
-            coroutine_yield();
-        }
+        // //每三秒发送一次消息
+        co_sleep(3);
     }
 
     close(client_sock);
@@ -64,7 +58,7 @@ void send_coroutine(void* arg) {
     return;
 }
 
-void recv_coroutine(void* arg) {
+void recv_coroutine(const void* arg) {
     int client_sock;
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
@@ -87,14 +81,13 @@ void recv_coroutine(void* arg) {
     struct timeval rcv_timeout;
     rcv_timeout.tv_sec = 1;
     rcv_timeout.tv_usec = 0;
-    if (co_setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, &rcv_timeout, sizeof(rcv_timeout)) <
-        0) {
+    if (setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, &rcv_timeout, sizeof(rcv_timeout)) < 0) {
         perror("setsockopt SO_RCVTIMEO");
         close(client_sock);
         return;
     }
     while (1) {
-        int bytes_received = co_recv(client_sock, buffer, BUFFER_SIZE, 0);
+        int bytes_received = recv(client_sock, buffer, BUFFER_SIZE, 0);
         if (bytes_received < 0) {
             perror("Receive failed");
             continue;
@@ -111,11 +104,12 @@ int main() {
     log_set_level_from_env();
     srand(time(0));
     PORT += rand() % 10000;
-    Coroutine sender, receiver;
-    coroutine_init(&sender, send_coroutine, "sender", STACKSIZE);
-    coroutine_init(&receiver, recv_coroutine, "receiver", STACKSIZE);
-    start_eventloop();
-    while (1) coroutine_yield();
+    enable_hook();
+    coroutine_t sender, receiver;
+    sender = coroutine_init(send_coroutine, "sender", 0);
+    receiver = coroutine_init(recv_coroutine, "receiver", 0);
+    coroutine_join(sender);
+    coroutine_join(receiver);
     return 0;
 }
 /*正确输出：发每隔三秒一次，收超时一秒，所以应该是成功一次超时两次交替

@@ -85,7 +85,7 @@ bool is_hook_enabled() {
 }
 ssize_t co_read(int fd, void *buf, size_t nbyte) {
     int flag = fcntl(fd, F_GETFL);
-    if (flag & O_NONBLOCK) return read(fd, buf, nbyte);
+    if (flag & O_NONBLOCK) return sys_read(fd, buf, nbyte);
     epoll_event event;
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
@@ -95,14 +95,14 @@ ssize_t co_read(int fd, void *buf, size_t nbyte) {
         errno = EAGAIN;
         return -1;
     }
-    return read(fd, buf, nbyte);
+    return sys_read(fd, buf, nbyte);
 }
 //写跟读不一样，可能出现目标可写，但是需要写的内容大于容量的情况
 //此时如果写对象是管道或套接字，会陷入阻塞
 //所以需要使用非阻塞的写操作
 ssize_t co_write(int fd, const void *buf, size_t nbyte) {
     int flag = fcntl(fd, F_GETFL);
-    if (flag & O_NONBLOCK) return write(fd, buf, nbyte);
+    if (flag & O_NONBLOCK) return sys_write(fd, buf, nbyte);
     epoll_event event;
     event.data.fd = fd;
     event.events = EPOLLOUT | EPOLLERR | EPOLLHUP;
@@ -113,7 +113,7 @@ ssize_t co_write(int fd, const void *buf, size_t nbyte) {
             return -1;
         }
         fcntl(fd, F_SETFL, flag | O_NONBLOCK);
-        ret = write(fd, buf, nbyte);
+        ret = sys_write(fd, buf, nbyte);
         //需要改回阻塞
         fcntl(fd, F_SETFL, flag);
         //成功写，则返回
@@ -128,7 +128,7 @@ ssize_t co_write(int fd, const void *buf, size_t nbyte) {
 ssize_t co_sendto(int fd, const void *buf, size_t n, int flags, const struct sockaddr *addr,
                   socklen_t addrlen) {
     int flag = fcntl(fd, F_GETFL);
-    if (flag & O_NONBLOCK) return sendto(fd, buf, n, flags, addr, addrlen);
+    if (flag & O_NONBLOCK) return sys_sendto(fd, buf, n, flags, addr, addrlen);
 
     epoll_event event;
     event.data.fd = fd;
@@ -140,7 +140,7 @@ ssize_t co_sendto(int fd, const void *buf, size_t n, int flags, const struct soc
             return -1;
         }
         fcntl(fd, F_SETFL, flag | O_NONBLOCK);
-        ret = sendto(fd, buf, n, flags, addr, addrlen);
+        ret = sys_sendto(fd, buf, n, flags, addr, addrlen);
         //需要改回阻塞
         fcntl(fd, F_SETFL, flag);
         //成功写，则返回
@@ -155,7 +155,7 @@ ssize_t co_sendto(int fd, const void *buf, size_t n, int flags, const struct soc
 ssize_t co_recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *addr,
                     socklen_t *addrlen) {
     int flag = fcntl(fd, F_GETFL);
-    if (flag & O_NONBLOCK) return recvfrom(fd, buf, n, flags, addr, addrlen);
+    if (flag & O_NONBLOCK) return sys_recvfrom(fd, buf, n, flags, addr, addrlen);
     epoll_event event;
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
@@ -164,12 +164,12 @@ ssize_t co_recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *add
         errno = EAGAIN;
         return -1;
     }
-    return recvfrom(fd, buf, n, flags, addr, addrlen);
+    return sys_recvfrom(fd, buf, n, flags, addr, addrlen);
 }
 
 ssize_t co_send(int fd, const void *buf, size_t n, int flags) {
     int flag = fcntl(fd, F_GETFL);
-    if (flag & O_NONBLOCK) return send(fd, buf, n, flags);
+    if (flag & O_NONBLOCK) return sys_send(fd, buf, n, flags);
 
     epoll_event event;
     event.data.fd = fd;
@@ -181,7 +181,7 @@ ssize_t co_send(int fd, const void *buf, size_t n, int flags) {
             return -1;
         }
         fcntl(fd, F_SETFL, flag | O_NONBLOCK);
-        ret = send(fd, buf, n, flags);
+        ret = sys_send(fd, buf, n, flags);
         //需要改回阻塞
         fcntl(fd, F_SETFL, flag);
         //成功写，则返回
@@ -195,7 +195,7 @@ ssize_t co_send(int fd, const void *buf, size_t n, int flags) {
 
 ssize_t co_recv(int fd, void *buf, size_t n, int flags) {
     int flag = fcntl(fd, F_GETFL);
-    if (flag & O_NONBLOCK) return recv(fd, buf, n, flags);
+    if (flag & O_NONBLOCK) return sys_recv(fd, buf, n, flags);
     epoll_event event;
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
@@ -204,27 +204,27 @@ ssize_t co_recv(int fd, void *buf, size_t n, int flags) {
         errno = EAGAIN;
         return -1;
     }
-    return recv(fd, buf, n, flags);
+    return sys_recv(fd, buf, n, flags);
 }
 
 int co_accept(int fd, struct sockaddr *addr, socklen_t *addrlen) {
     int flag = fcntl(fd, F_GETFL);
-    if (flag & O_NONBLOCK) return accept(fd, addr, addrlen);
+    if (flag & O_NONBLOCK) return sys_accept(fd, addr, addrlen);
     epoll_event event;
     event.data.fd = fd;
     //不保证一次能读全，所以不能ET
     event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
     // accept不受setsockopt设置的超时时间影响
     wait_event(&event, -1);
-    return accept(fd, addr, addrlen);
+    return sys_accept(fd, addr, addrlen);
 }
 
 int co_connect(int fd, const struct sockaddr *address, socklen_t address_len) {
     int flag = fcntl(fd, F_GETFL);
-    if (flag & O_NONBLOCK) return connect(fd, address, address_len);
+    if (flag & O_NONBLOCK) return sys_connect(fd, address, address_len);
 
     fcntl(fd, F_SETFL, flag | O_NONBLOCK);
-    int ret = connect(fd, address, address_len);
+    int ret = sys_connect(fd, address, address_len);
     fcntl(fd, F_SETFL, flag);
 
     if (!(ret < 0 && errno == EINPROGRESS)) {
@@ -242,7 +242,7 @@ int co_connect(int fd, const struct sockaddr *address, socklen_t address_len) {
     }
     //这里使用阻塞的connect，因为EPOLLOUT | EPOLLERR | EPOLLHUP
     //时不会阻塞，并且能给用户正确的返回值和errno
-    ret = connect(fd, address, address_len);
+    ret = sys_connect(fd, address, address_len);
     //连接成功
     if (ret == -1 && errno == EISCONN) return 0;
     //出现错误
@@ -251,7 +251,7 @@ int co_connect(int fd, const struct sockaddr *address, socklen_t address_len) {
 
 int co_setsockopt(int fd, int level, int option_name, const void *option_value,
                   socklen_t option_len) {
-    int res = setsockopt(fd, level, option_name, option_value, option_len);
+    int res = sys_setsockopt(fd, level, option_name, option_value, option_len);
     //操作失败的话就不需要保存超时信息
     EventManager *event_manager = get_eventmanager();
     if (res) return res;
@@ -278,12 +278,14 @@ int co_usleep(useconds_t useconds) {
 
 /***********************************************************************************/
 ssize_t read(int fd, void *buf, size_t nbyte) {
+    init_hook();
     if (is_hook_enabled())
         return co_read(fd, buf, nbyte);
     else
         return sys_read(fd, buf, nbyte);
 }
 ssize_t write(int fd, const void *buf, size_t nbyte) {
+    init_hook();
     if (is_hook_enabled())
         return co_write(fd, buf, nbyte);
     else
@@ -292,6 +294,7 @@ ssize_t write(int fd, const void *buf, size_t nbyte) {
 
 ssize_t sendto(int fd, const void *buf, size_t n, int flags, const struct sockaddr *addr,
                socklen_t addrlen) {
+    init_hook();
     if (is_hook_enabled())
         return co_sendto(fd, buf, n, flags, addr, addrlen);
     else
@@ -300,6 +303,7 @@ ssize_t sendto(int fd, const void *buf, size_t n, int flags, const struct sockad
 
 ssize_t recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *addr,
                  socklen_t *addrlen) {
+    init_hook();
     if (is_hook_enabled())
         return co_recvfrom(fd, buf, n, flags, addr, addrlen);
     else
@@ -307,6 +311,7 @@ ssize_t recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *addr,
 }
 
 ssize_t send(int fd, const void *buf, size_t n, int flags) {
+    init_hook();
     if (is_hook_enabled())
         return co_send(fd, buf, n, flags);
     else
@@ -314,6 +319,7 @@ ssize_t send(int fd, const void *buf, size_t n, int flags) {
 }
 
 ssize_t recv(int fd, void *buf, size_t n, int flags) {
+    init_hook();
     if (is_hook_enabled())
         return co_recv(fd, buf, n, flags);
     else
@@ -321,6 +327,7 @@ ssize_t recv(int fd, void *buf, size_t n, int flags) {
 }
 
 int accept(int fd, struct sockaddr *addr, socklen_t *addrlen) {
+    init_hook();
     if (is_hook_enabled())
         return co_accept(fd, addr, addrlen);
     else
@@ -328,6 +335,7 @@ int accept(int fd, struct sockaddr *addr, socklen_t *addrlen) {
 }
 
 int connect(int fd, const struct sockaddr *address, socklen_t address_len) {
+    init_hook();
     if (is_hook_enabled())
         return co_connect(fd, address, address_len);
     else
@@ -335,22 +343,25 @@ int connect(int fd, const struct sockaddr *address, socklen_t address_len) {
 }
 
 int setsockopt(int fd, int level, int option_name, const void *option_value, socklen_t option_len) {
+    init_hook();
     if (is_hook_enabled())
         return co_setsockopt(fd, level, option_name, option_value, option_len);
     else
         return sys_setsockopt(fd, level, option_name, option_value, option_len);
 }
 
-unsigned int sleep(unsigned int seconds) {
-    if (is_hook_enabled())
-        sys_sleep(seconds);
-    else
-        sys_sleep(seconds);
-}
+// unsigned int sleep(unsigned int seconds) {
+//     init_hook();
+//     if (is_hook_enabled())
+//         sys_sleep(seconds);
+//     else
+//         sys_sleep(seconds);
+// }
 
-int usleep(useconds_t useconds) {
-    if (is_hook_enabled())
-        sys_usleep(useconds);
-    else
-        sys_usleep(useconds);
-}
+// int usleep(useconds_t useconds) {
+//     init_hook();
+//     if (is_hook_enabled())
+//         sys_usleep(useconds);
+//     else
+//         sys_usleep(useconds);
+// }

@@ -1,9 +1,8 @@
 #include <stdio.h>
 
-#include "coroutine.h"
-#include "utils.h"
+#include "coheader.h"
 int recnum = 0;
-void auto_rec(void *) {
+void auto_rec(const void *) {
     if (recnum >= 5) return;
     char name[2];
     name[0] = 'a';
@@ -11,14 +10,14 @@ void auto_rec(void *) {
     name[0] += recnum;
     recnum++;
     printf("co %s begin\n", name);
-    Coroutine co1, co2;
-    coroutine_init(&co1, auto_rec, NULL, 0);
-    coroutine_init(&co2, auto_rec, NULL, 0);
+    coroutine_t co1, co2;
+    co1 = coroutine_init(auto_rec, NULL, 0);
+    co2 = coroutine_init(auto_rec, NULL, 0);
+    coroutine_join(co1);
+    coroutine_join(co2);
     printf("co %s finished\n", name);
-    while (co1.status != COROUTINE_DEAD) coroutine_yield();
-    while (co2.status != COROUTINE_DEAD) coroutine_yield();
 }
-void hand_rec(void *depth) {
+void hand_rec(const void *depth) {
     int d = *(int *)depth;
     if (d >= 3) return;
     char name[2];
@@ -26,17 +25,16 @@ void hand_rec(void *depth) {
     name[1] = '\0';
     name[0] += d;
     printf("co depth %s begin\n", name);
-    Coroutine co1, co2;
+    coroutine_t co1, co2;
     d++;
-    coroutine_init(&co1, hand_rec, &d, 0);
-    coroutine_init(&co2, hand_rec, &d, 0);
-    coroutine_resume(&co1);
-    coroutine_resume(&co2);
+    co1 = coroutine_init(hand_rec, &d, 0);
+    co2 = coroutine_init(hand_rec, &d, 0);
+    coroutine_resume(co1);
+    coroutine_resume(co2);
     printf("co depth %s finished\n", name);
 }
 int main() {
     log_set_level_from_env();
-    start_eventloop();
     printf("***************test auto rec**************\n");
     auto_rec(NULL);
     printf("\n***************test hand rec********************\n");

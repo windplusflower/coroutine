@@ -14,42 +14,37 @@ make test_rdwr LOG_LEVEL=LOG_DEBUG
 ## 接口
 ```C
 /*
-创建协程，并将创建出来的协程保存到参数co中，co指向的内存由用户提前分配;
-参数func需要是一个void (*)(void*)类型的函数;
-arg是一个void*指针，表示传给func的参数，可以为NULL;
+创建协程，返回句柄;
+参数func需要是一个void (*)(const void*)类型的函数;
+arg是一个const void*指针，表示传给func的参数，可以为NULL;
 stack_size是栈大小，可以用0表示由框架指定;
 创建后的协程默认自动调度，当对协程显式使用coroutine_resume()启动后会变为手动调度。
 */
-void coroutine_init(Coroutine *co, void (*func)(void *), void *arg, size_t stack_size);
+coroutine_t coroutine_init(void (*func)(const void *), void *arg, size_t stack_size);
 
-//开启事件循环，自动执行自动调度的协程
-void start_eventloop();
-
-//唤醒协程co，只用于手动调度，被唤醒的协程挂起后会回到本协程
-void coroutine_resume(Coroutine *co);
+//唤醒协程co，只用于手动调度，被唤醒的协程挂起后会回到本协程，否则回到调度器
+void coroutine_resume(coroutine_t handle);
 
 //挂起当前协程
 void coroutine_yield();
 
 //运行完毕后释放协程内存
-//此操作并不会释放co指向的内存，只会释放协程额外用到的内存
-//如果在协程未结束时调用会终止协程
-//如果在协程未结束时直接释放co指向的内存，会出现段错误，如果co是局部变量则尤其需要注意这点。
-void coroutine_free(Coroutine *co);
+//目前只能用于手动调度
+void coroutine_free(coroutine_t handle);
 
-//结束当前协程
-void coroutine_finish();
+//等待协程运行结束并释放写成内存
+void coroutine_join(coroutine_t handle);
 ```
 
 ## 本协程库特点
 1. 协程可嵌套、可递归，不限深度，只要内存够。
-2. 支持手动调度（非对称式调度）和自动调度（对称式调度）混用。
+2. 支持非对称式的手动调度和对称式的自动调度混用。
 3. 支持协程版本的函数与系统原版函数混用，即协程并不会对其它函数的行为产生影响。（libco不支持混用，因为它开启hook机制后会强制把所有文件描述符都永久改成非阻塞，所以只能要么全部用hook后的函数，要么全部用原版函数，不能混用。而本协程库只在协程版本的函数内部修改文件描述符的阻塞性，返回前还原，故不会产生影响。）
 4. 使用小根堆来实现超时机制。
-5. 主协程也受事件循环调度（比如在主协程也能使用coroutine_yield函数，也能在阻塞时通过协程提供的函数自动挂起）
-6. 协程创建后即投入运行，不需要手动启动，不需要手动开启事件循环(TODO),添加coroutine_wait接口用于等待协程结束(TODO)，支持获取返回值(TODO)，使协程的使用方式更接近linux线程/进程。
-7. 类似linux多线程，协程创建后只返回一个int型的句柄，向用户屏蔽内部结构，因此也只需要包含一个头文件(TODO)
-8. 实现hook机制，开启hook后即可向使用原版函数一样使用各函数(TODO)。
+5. 实现hook机制，开启hook后即可向使用原版函数一样使用各函数。
+6. 主协程也受事件循环调度（比如在主协程也能使用coroutine_yield函数，也能在阻塞时通过协程提供的函数自动挂起）
+7. 协程创建后即投入运行，不需要手动启动，不需要手动开启事件循环(TODO),添加coroutine_wait接口用于等待协程结束(TODO)，支持获取返回值(TODO)，使协程的使用方式更接近linux线程/进程。
+8. 类似linux多线程，协程创建后只返回一个int型的句柄，向用户屏蔽内部结构，因此也只需要包含一个头文件(TODO)
 9. 可能引入协程优先级机制(TODO)
 
 ## 进度
@@ -67,6 +62,7 @@ void coroutine_finish();
 - **24.12.12**: 修复创建协程传递的参数不能为NULL的BUG，修复epoll相关bug，添加小根堆的实现，为实现超时机制做准备。完善readme文档介绍。
 - **24.12.14**: 重构wait_event，添加之前系统调用的超时机制，添加sleep和usleep。
 - **24.12.16**: 实现协程版本的connect，实现协程调用栈的动态扩容。
+- **24.12.18**: 在考虑协程结构体本身内存是由用户释放还是框架释放时遇到了两难，后来想到可以模仿linux线程，只给用户提供int类型的句柄，这样不但可以防止用户以外释放内存，还可以向用户屏蔽协程内部结构。实现了单头文件，现在只需要包含coheader.h文件即可使用。实现了hook机制。模仿linux多线程，协程创建即投入使用，无需手动启动，使用coroutine_join回收等待。
 
 ## Debug 记录
 ### 2024.11.25~2024.11.26
