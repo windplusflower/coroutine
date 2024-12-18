@@ -22,29 +22,89 @@ stack_size是栈大小，可以用0表示由框架指定;
 */
 coroutine_t coroutine_init(void (*func)(const void *), void *arg, size_t stack_size);
 
-//唤醒协程co，只用于手动调度，被唤醒的协程挂起后会回到本协程，否则回到调度器
+//唤醒协程co，只用于手动调度，被唤醒的协程挂起后会回到本协程
 void coroutine_resume(coroutine_t handle);
 
 //挂起当前协程
 void coroutine_yield();
 
-//运行完毕后释放协程内存
-//目前只能用于手动调度
+//释放已经结束的手动调度的协程内存
+//只能用于手动调度
 void coroutine_free(coroutine_t handle);
 
-//等待协程运行结束并释放写成内存
+//等待协程运行结束并释放协程内存
+//只能用于自动调度
 void coroutine_join(coroutine_t handle);
+
+//强制结束协程
+//手动调度的协程结束后需要用coroutine_free回收
+//自动调度的协程不需要手动回收
+void coroutine_cancel(coroutine_t handle);
+
+//开启hook机制
+void enable_hook();
+
+//关闭hook机制
+void unable_hook();
+
+//检查是否开启了hook
+bool is_hook_enabled();
+
+// 支持hook的函数：read,write,send,recv,sendto,recvfrom,accept,connect,setsockopt
+```
+
+## 示例
+- 使用：src目录下会被编译为共享库libsrc.so，头文件包含coheader.h，链接此共享库即可使用
+- 手动调度：
+```C
+#include "coheader.h"
+void func(const void* arg){
+    printf("A\n");
+    coroutine_yield();
+    printf("C\n");
+}
+int main(){
+    coroutine_t co=coroutine_init(func,NULL,0);
+    coroutine_resume(co);
+    printf("B\n");
+    coroutine_resume(co);
+    coroutine_free(co);
+}
+/*输出：
+A
+B
+C
+*/
+```
+- 自动调度：
+```C
+#include "coheader.h"
+void func(const void* arg){
+    printf("A\n");
+    coroutine_yield();
+    printf("B\n");
+}
+int main(){
+    coroutine_t co=coroutine_init(func,NULL,0);
+    coroutine_join(co);
+    printf("C\n");
+}
+/*输出：
+A
+B
+C
+*/
 ```
 
 ## 本协程库特点
 1. 协程可嵌套、可递归，不限深度，只要内存够。
 2. 支持非对称式的手动调度和对称式的自动调度混用。
-3. 支持协程版本的函数与系统原版函数混用，即协程并不会对其它函数的行为产生影响。（libco不支持混用，因为它开启hook机制后会强制把所有文件描述符都永久改成非阻塞，所以只能要么全部用hook后的函数，要么全部用原版函数，不能混用。而本协程库只在协程版本的函数内部修改文件描述符的阻塞性，返回前还原，故不会产生影响。）
-4. 使用小根堆来实现超时机制。
-5. 实现hook机制，开启hook后即可向使用原版函数一样使用各函数。
-6. 主协程也受事件循环调度（比如在主协程也能使用coroutine_yield函数，也能在阻塞时通过协程提供的函数自动挂起）
-7. 协程创建后即投入运行，不需要手动启动，不需要手动开启事件循环(TODO),添加coroutine_wait接口用于等待协程结束(TODO)，支持获取返回值(TODO)，使协程的使用方式更接近linux线程/进程。
-8. 类似linux多线程，协程创建后只返回一个int型的句柄，向用户屏蔽内部结构，因此也只需要包含一个头文件(TODO)
+3. 支持协程版本的函数与系统原版函数混用，即协程并不会对其它函数的行为产生影响。（libco不支持混用，因为它开启hook机制后会强制把所有文件描述符都改成非阻塞，所以只能要么全部用hook后的函数，要么全部用原版函数，不能混用。而本协程库只在协程版本的函数内部修改文件描述符的阻塞性，返回前还原，故不会产生影响。）
+4. 类似linux多线程，协程创建后只返回一个int型的句柄，向用户屏蔽内部结构。
+5. 只需要包含一个头文件。
+6. 实现hook机制，开启hook后即可像使用原版函数一样使用各函数。
+7. 使用小根堆来实现超时机制。
+8. 协程创建后即投入运行，不需要手动启动，不需要手动开启事件循环，添加coroutine_join接口用于等待协程结束，(TODO: 支持获取返回值)，使协程的使用方式更接近linux线程。
 9. 可能引入协程优先级机制(TODO)
 
 ## 进度
