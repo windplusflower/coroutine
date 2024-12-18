@@ -26,6 +26,6 @@ typedef struct Context {
     size_t ss_size;
 } Context;
 
-void make_context(Context* context, void (*func)(void*));
+void make_context(Context* context, void (*func)());
 extern void swap_context(Context*, Context*);
 #endif

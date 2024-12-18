@@ -25,7 +25,6 @@ void write_pipe(const void *) {
     }
 }
 int main() {
-    log_set_level_from_env();
     enable_hook();
     pipe(fd);
     coroutine_t rd = coroutine_init(read_pipe, "readpipe", 0);

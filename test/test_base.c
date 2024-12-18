@@ -24,7 +24,6 @@ void test_func3(const void *arg) {
 }
 
 int main() {
-    log_set_level_from_env();
     printf("Main: Starting coroutines......\n");
     int co1, co2, co3;
     co1 = coroutine_init(test_func1, "Test1", 0);
