@@ -6,7 +6,6 @@ void slp(const void *) {
     }
 }
 int main() {
-    log_set_level_from_env();
     coroutine_t co;
     co = coroutine_init(slp, "sleep", 0);
     coroutine_join(co);

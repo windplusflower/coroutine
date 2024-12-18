@@ -6,8 +6,6 @@
 
 typedef int coroutine_t;
 
-void log_set_level_from_env();
-
 int coroutine_init(void (*func)(const void *), const void *arg, size_t stack_size);
 void coroutine_resume(int handle);
 void coroutine_yield();

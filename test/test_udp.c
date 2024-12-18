@@ -57,7 +57,6 @@ void recv_coroutine(const void *arg) {
 }
 
 int main() {
-    log_set_level_from_env();
     enable_hook();
     struct sockaddr_in local_addr;
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);

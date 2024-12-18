@@ -34,7 +34,6 @@ void hand_rec(const void *depth) {
     printf("co depth %s finished\n", name);
 }
 int main() {
-    log_set_level_from_env();
     printf("***************test auto rec**************\n");
     auto_rec(NULL);
     printf("\n***************test hand rec********************\n");

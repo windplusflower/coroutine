@@ -90,7 +90,6 @@ void recv_coroutine(const void* arg) {
 }
 
 int main() {
-    log_set_level_from_env();
     enable_hook();
     srand(time(0));
     PORT += rand() % 10000;

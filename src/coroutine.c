@@ -12,6 +12,7 @@
 #include "event_manager.h"
 #include "log.h"
 #include "hook.h"
+#include "utils.h"
 
 void show_call_stack() {
     char buf[1024];
@@ -98,6 +99,7 @@ void eventloop_init() {
     __thread static bool has_inited = false;
     if (has_inited) return;
     has_inited = true;
+    log_set_level_from_env();
     init_coroutine_table();
     init_eventmanager();
     init_hook();
