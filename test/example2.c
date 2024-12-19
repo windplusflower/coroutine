@@ -5,7 +5,7 @@ void func(const void* arg) {
     printf("B\n");
 }
 int main() {
-    coroutine_t co = coroutine_init(func, NULL, 0);
+    coroutine_t co = coroutine_create(func, NULL, 0);
     coroutine_join(co);
     printf("C\n");
 }

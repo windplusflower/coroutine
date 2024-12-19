@@ -6,7 +6,7 @@
 
 typedef int coroutine_t;
 
-int coroutine_init(void (*func)(const void *), const void *arg, size_t stack_size);
+int coroutine_create(void (*func)(const void *), const void *arg, size_t stack_size);
 void coroutine_resume(int handle);
 void coroutine_yield();
 void coroutine_join(int handle);

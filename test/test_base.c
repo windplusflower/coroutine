@@ -26,11 +26,11 @@ void test_func3(const void *arg) {
 int main() {
     printf("Main: Starting coroutines......\n");
     int co1, co2, co3;
-    co1 = coroutine_init(test_func1, "Test1", 0);
-    co2 = coroutine_init(test_func2, "Test2", 0);
+    co1 = coroutine_create(test_func1, "Test1", 0);
+    co2 = coroutine_create(test_func2, "Test2", 0);
     coroutine_join(co1);
     coroutine_join(co2);
-    co3 = coroutine_init(test_func3, "Test3", 0);
+    co3 = coroutine_create(test_func3, "Test3", 0);
     coroutine_resume(co3);
     printf("Main: Coroutine3 suspended.\n");
     coroutine_resume(co3);

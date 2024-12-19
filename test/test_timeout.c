@@ -105,8 +105,8 @@ int main() {
     PORT += rand() % 10000;
     enable_hook();
     coroutine_t sender, receiver;
-    sender = coroutine_init(send_coroutine, "sender", 0);
-    receiver = coroutine_init(recv_coroutine, "receiver", 0);
+    sender = coroutine_create(send_coroutine, "sender", 0);
+    receiver = coroutine_create(recv_coroutine, "receiver", 0);
     coroutine_join(sender);
     coroutine_join(receiver);
     return 0;

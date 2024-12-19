@@ -24,6 +24,7 @@ void show_call_stack() {
     log_debug("call_stack: %s", buf);
 }
 
+//初始化hanlde与coroutine之间的映射表，可动态扩容
 void init_coroutine_table() {
     TABLE.capacity = TABLESIZE;
     TABLE.size = TABLESIZE;
@@ -32,6 +33,7 @@ void init_coroutine_table() {
     for (int i = 0; i < TABLESIZE; i++) TABLE.unused[i] = i;
 }
 
+//分配Handle
 int alloc_id() {
     if (TABLE.size == 0) {
         int n = TABLE.capacity;
@@ -46,15 +48,18 @@ int alloc_id() {
     return TABLE.unused[TABLE.size];
 }
 
+//根据handle获取Coroutine
 Coroutine *get_coroutine_by_id(int id) {
     return TABLE.co_table[id];
 }
 
+//释放Handle
 void free_id(int id) {
     TABLE.co_table[id] = NULL;
     TABLE.unused[TABLE.size++] = id;
 }
 
+//压入调用栈
 void env_push(Coroutine *co) {
     if (ENV.size >= ENV.capacity) {
         ENV.capacity *= 2;
@@ -63,6 +68,7 @@ void env_push(Coroutine *co) {
     ENV.call_stack[ENV.size++] = co;
 }
 
+//弹出调用栈
 Coroutine *env_pop() {
     assert(ENV.size > 0);
     //有大量空余时释放内存，最少减到STACKSEPTH
@@ -73,11 +79,13 @@ Coroutine *env_pop() {
     return ENV.call_stack[--ENV.size];
 }
 
+//获取当前协程
 Coroutine *get_current_coroutine() {
     assert(ENV.size > 0);
     return ENV.call_stack[ENV.size - 1];
 }
 
+//初始化主协程
 Coroutine *main_coroutine_init() {
     __thread static Coroutine *main_coroutine = NULL;
     if (main_coroutine != NULL) return main_coroutine;
@@ -95,6 +103,7 @@ Coroutine *main_coroutine_init() {
     return main_coroutine;
 }
 
+//初始化事件循环
 void eventloop_init() {
     __thread static bool has_inited = false;
     if (has_inited) return;
@@ -122,12 +131,16 @@ void eventloop_init() {
 
     log_debug("eventloop init finished");
 }
+
+//函数封装
 void func_wrapper() {
     Coroutine *co = get_current_coroutine();
     co->func(co->arg);
     coroutine_finish();
 }
-int coroutine_init(void (*func)(const void *), const void *arg, size_t stack_size) {
+
+//创建协程
+int coroutine_create(void (*func)(const void *), const void *arg, size_t stack_size) {
     eventloop_init();
     if (stack_size <= 0) stack_size = STACKSIZE;
     Coroutine *co = (Coroutine *)malloc(sizeof(Coroutine));
@@ -153,6 +166,7 @@ int coroutine_init(void (*func)(const void *), const void *arg, size_t stack_siz
     return handle;
 }
 
+//唤醒协程
 void coroutine_resume(int handle) {
     show_call_stack();
     Coroutine *co = get_coroutine_by_id(handle);
@@ -176,6 +190,7 @@ void coroutine_resume(int handle) {
     swap_context(&cur->context, &co->context);
 }
 
+//挂起协程
 void coroutine_yield() {
     show_call_stack();
     Coroutine *current_coroutine = env_pop();
@@ -188,6 +203,7 @@ void coroutine_yield() {
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
 
+//结束协程
 void coroutine_finish() {
     show_call_stack();
     Coroutine *current_coroutine = env_pop();
@@ -197,6 +213,7 @@ void coroutine_finish() {
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
 
+//释放协程
 void coroutine_free(int handle) {
     Coroutine *co = get_coroutine_by_id(handle);
     if (co == NULL) {
@@ -212,6 +229,7 @@ void coroutine_free(int handle) {
     free_id(handle);
 }
 
+//等待协程结束
 void coroutine_join(int handle) {
     Coroutine *co = get_coroutine_by_id(handle);
     if (co == NULL) {
@@ -226,6 +244,7 @@ void coroutine_join(int handle) {
     coroutine_free(handle);
 }
 
+//杀死协程
 void coroutine_cancel(int handle) {
     Coroutine *co = get_coroutine_by_id(handle);
     if (co == NULL) {

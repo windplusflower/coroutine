@@ -20,7 +20,7 @@ arg是一个const void*指针，表示传给func的参数，可以为NULL;
 stack_size是栈大小，可以用0表示由框架指定;
 创建后的协程默认自动调度，当对协程显式使用coroutine_resume()启动后会变为手动调度。
 */
-coroutine_t coroutine_init(void (*func)(const void *), void *arg, size_t stack_size);
+coroutine_t coroutine_create(void (*func)(const void *), void *arg, size_t stack_size);
 
 //唤醒协程co，只用于手动调度，被唤醒的协程挂起后会回到本协程
 void coroutine_resume(coroutine_t handle);
@@ -64,7 +64,7 @@ void func(const void* arg){
     printf("C\n");
 }
 int main(){
-    coroutine_t co=coroutine_init(func,NULL,0);
+    coroutine_t co=coroutine_create(func,NULL,0);
     coroutine_resume(co);
     printf("B\n");
     coroutine_resume(co);
@@ -85,7 +85,7 @@ void func(const void* arg){
     printf("B\n");
 }
 int main(){
-    coroutine_t co=coroutine_init(func,NULL,0);
+    coroutine_t co=coroutine_create(func,NULL,0);
     coroutine_join(co);
     printf("C\n");
 }
@@ -105,7 +105,6 @@ C
 6. 实现hook机制，开启hook后即可像使用原版函数一样使用各函数。
 7. 使用小根堆来实现超时机制。
 8. 协程创建后即投入运行，不需要手动启动，不需要手动开启事件循环，添加coroutine_join接口用于等待协程结束，(TODO: 支持获取返回值)，使协程的使用方式更接近linux线程。
-9. 可能引入协程优先级机制(TODO)
 
 ## 进度
 - **24.11.23**: 实现简易的单对父子协程切换功能。

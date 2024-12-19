@@ -11,8 +11,8 @@ void auto_rec(const void *) {
     recnum++;
     printf("co %s begin\n", name);
     coroutine_t co1, co2;
-    co1 = coroutine_init(auto_rec, NULL, 0);
-    co2 = coroutine_init(auto_rec, NULL, 0);
+    co1 = coroutine_create(auto_rec, NULL, 0);
+    co2 = coroutine_create(auto_rec, NULL, 0);
     coroutine_join(co1);
     coroutine_join(co2);
     printf("co %s finished\n", name);
@@ -27,8 +27,8 @@ void hand_rec(const void *depth) {
     printf("co depth %s begin\n", name);
     coroutine_t co1, co2;
     d++;
-    co1 = coroutine_init(hand_rec, &d, 0);
-    co2 = coroutine_init(hand_rec, &d, 0);
+    co1 = coroutine_create(hand_rec, &d, 0);
+    co2 = coroutine_create(hand_rec, &d, 0);
     coroutine_resume(co1);
     coroutine_resume(co2);
     printf("co depth %s finished\n", name);

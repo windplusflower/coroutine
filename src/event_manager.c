@@ -11,6 +11,7 @@
 #include "log.h"
 #include "utils.h"
 
+//创建空链表
 EventList* make_empty_list() {
     EventList* res = (EventList*)malloc(sizeof(EventList));
     res->head = (EventNode*)calloc(1, sizeof(EventNode));
@@ -18,19 +19,24 @@ EventList* make_empty_list() {
     return res;
 }
 
+//获取EVENTMANAGER，在其他文件调用
+//因为EVENT_MANAGER有static属性，所以在其他文件只能通过函数调用
 EventManager* get_eventmanager() {
     return &EVENT_MANAGER;
 }
 
+//初始化EVENTMANAGER
 void init_eventmanager() {
     EVENT_MANAGER.active_list = make_empty_list();
     EVENT_MANAGER.epollfd = epoll_create1(0);
     EVENT_MANAGER.event_size = EVENTSIZE;
     EVENT_MANAGER.events = (epoll_event*)malloc(EVENTSIZE * sizeof(epoll_event));
+    //初始大小设多大无妨，因为会动态调整大小
     EVENT_MANAGER.time_heap = heap_create(1024);
     log_debug("Event manager init finished");
 }
 
+//生成结点
 EventNode* make_node(Coroutine* co) {
     EventNode* res = (EventNode*)calloc(1, sizeof(EventNode));
     res->co = co;
@@ -48,6 +54,7 @@ void free_node(EventNode* node) {
     if (node->free_times == 0) free(node);
 }
 
+//添加到链表尾部
 EventNode* push_back(EventList* list, Coroutine* co) {
     EventNode* node = make_node(co);
     list->tail->next = node;
@@ -55,6 +62,7 @@ EventNode* push_back(EventList* list, Coroutine* co) {
     return node;
 }
 
+//从链表头部弹出
 Coroutine* pop_front(EventList* list) {
     assert(list->head->next != NULL);
     EventNode* node = list->head->next;
@@ -65,6 +73,7 @@ Coroutine* pop_front(EventList* list) {
     return co;
 }
 
+//移除node的下一个节点
 void remove_next(EventList* list, EventNode* node) {
     assert(node->next != NULL);
     EventNode* tmp = node->next;
@@ -73,6 +82,7 @@ void remove_next(EventList* list, EventNode* node) {
     if (node->next == NULL) list->tail = node;
 }
 
+//判断链表是否为空
 bool is_emptylist(EventList* list) {
     return list == NULL || list->head == list->tail;
 }
@@ -131,7 +141,7 @@ EventNode* push_in_epoll(Coroutine* co) {
     return push_back(EVENT_MANAGER.waiting_co[fd], co);
 }
 
-//参数分别为：等待的事件；等待的事件(ms)
+//参数分别为：等待的事件；等待的时间(ms)
 //这个函数只由库内的函数调用，保证event会传fd
 //返回是否成功等到事件
 bool wait_event(epoll_event* event, int timeout) {
@@ -153,7 +163,7 @@ bool wait_event(epoll_event* event, int timeout) {
         }
     }
     log_debug("%s wait event(%dms) and yield", co->name, timeout);
-    // add_event是由重写的IO调用的，因此需要yield，当描述符可用时由调度器唤醒。
+    // add_event是由重写的系统函数调用的，因此需要yield，当描述符可用时由调度器唤醒。
     coroutine_yield();
     bool res = co->timeout ^ 1;
     co->timeout = 0;
@@ -216,6 +226,8 @@ void awake() {
         add_coroutine(node->co);
     }
 }
+
+//事件循环
 void event_loop() {
     while (1) {
         awake();

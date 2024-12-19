@@ -7,7 +7,7 @@ void slp(const void *) {
 }
 int main() {
     coroutine_t co;
-    co = coroutine_init(slp, "sleep", 0);
+    co = coroutine_create(slp, "sleep", 0);
     coroutine_join(co);
 }
 /*正确输出：

@@ -27,8 +27,8 @@ void write_pipe(const void *) {
 int main() {
     enable_hook();
     pipe(fd);
-    coroutine_t rd = coroutine_init(read_pipe, "readpipe", 0);
-    coroutine_t wr = coroutine_init(write_pipe, "writepipe", 0);
+    coroutine_t rd = coroutine_create(read_pipe, "readpipe", 0);
+    coroutine_t wr = coroutine_create(write_pipe, "writepipe", 0);
     coroutine_join(rd);
     coroutine_join(wr);
 }

@@ -18,8 +18,8 @@ int main() {
     enable_hook();
     coroutine_t reading, suspending;
     //参数并不使用，只是便于调试
-    reading = coroutine_init(read_test, "read_test", 0);
-    suspending = coroutine_init(testing_read_suspend, "testing_suspend", 0);
+    reading = coroutine_create(read_test, "read_test", 0);
+    suspending = coroutine_create(testing_read_suspend, "testing_suspend", 0);
     coroutine_join(reading);
     coroutine_join(suspending);
     return 0;

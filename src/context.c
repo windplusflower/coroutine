@@ -4,6 +4,7 @@
 
 #include "log.h"
 
+//生成上下文
 void make_context(Context* context, void (*func)()) {
     //计算栈底位置，令sp指向栈底
     char* sp = context->ss_sp + context->ss_size - sizeof(void*);
