@@ -97,7 +97,9 @@ Coroutine *main_coroutine_init() {
     //主协程用的进程的栈空间，故不需要手动分配和指定。
     main_coroutine->status = COROUTINE_RUNNING;
     main_coroutine->arg = NULL;
+#ifdef USE_DEBUG
     main_coroutine->name = "main";
+#endif
     main_coroutine->auto_schedule = true;
     main_coroutine->in_epoll = false;
     main_coroutine->handle = alloc_id();
@@ -124,7 +126,9 @@ void eventloop_init() {
     Coroutine *co = ENV.eventloop_coroutine;
     co->stack_size = STACKSIZE;
     co->stack = malloc(STACKSIZE);
+#ifdef USE_DEBUG
     co->name = "event_loop";
+#endif
 
     co->context.ss_sp = co->stack;
     co->context.ss_size = STACKSIZE;
@@ -140,7 +144,7 @@ void eventloop_init() {
 //函数封装
 void func_wrapper() {
     Coroutine *co = get_current_coroutine();
-    co->func(co->arg);
+    co->return_val = co->func(co->arg);
     coroutine_finish();
 }
 
@@ -161,8 +165,15 @@ int coroutine_create(void (*func)(const void *), const void *arg, size_t stack_s
     co->context.ss_sp = co->stack;
     co->context.ss_size = stack_size;
     make_context(&co->context, func_wrapper);
-    co->name = arg;  //仅作调试用，用arg来辨识不同协程
-    if (co->name == NULL) co->name = "NoName";
+#ifdef USE_DEBUG
+    char *buf = malloc(7);
+    for (int i = 0; i < 5; i++) {
+        buf[i] = 'a' + rand() % 26;
+    }
+    buf[5] = 0;
+    co->name = buf;  //仅作调试用，来辨识不同协程
+    log_debug("create coroutine %s", co->name);
+#endif
     add_coroutine(co);
 
     int handle = alloc_id();
@@ -220,7 +231,6 @@ void coroutine_finish() {
     Coroutine *current_coroutine = env_pop();
     Coroutine *upcoming_coroutine = get_current_coroutine();
     current_coroutine->status = COROUTINE_DEAD;
-
 #ifdef USE_DEBUG
     log_debug("%s finished and yield to %s", current_coroutine->name, upcoming_coroutine->name);
 #endif
@@ -243,19 +253,21 @@ void coroutine_free(int handle) {
     free_id(handle);
 }
 
-//等待协程结束
-void coroutine_join(int handle) {
+//等待协程结束,返回返回值
+void *coroutine_join(int handle) {
     Coroutine *co = get_coroutine_by_id(handle);
     if (co == NULL) {
         log_error("Handle %d not exist!", handle);
-        return;
+        return NULL;
     }
     if (co->auto_schedule == false) {
         log_error("You can't join a no auto schedule coroutine!");
-        return;
+        return NULL;
     }
     while (co->status != COROUTINE_DEAD) coroutine_yield();
+    void *res = co->return_val;
     coroutine_free(handle);
+    return res;
 }
 
 //杀死协程
@@ -265,5 +277,22 @@ void coroutine_cancel(int handle) {
         log_error("Handle %d not exist!", handle);
         return;
     }
+    if (co->status == COROUTINE_DEAD) {
+        log_error("Handle %d has finished yet!", handle);
+        return;
+    }
+    if (co == get_current_coroutine()) {
+        log_error("You can't cancel youself, please use \"return\"!");
+        return;
+    }
     co->status = COROUTINE_DEAD;
+}
+
+void *coroutine_get_return_val(int handle) {
+    Coroutine *co = get_coroutine_by_id(handle);
+    if (co->status != COROUTINE_DEAD) {
+        log_error("Coroutine %d has not finished!", handle);
+        return NULL;
+    }
+    return co->return_val;
 }

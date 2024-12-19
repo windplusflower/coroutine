@@ -14,7 +14,7 @@
 #define SERVER_IP "127.0.0.1"
 
 int sockfd;
-void send_coroutine(const void *arg) {
+void *send_coroutine(const void *arg) {
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
 
@@ -35,9 +35,10 @@ void send_coroutine(const void *arg) {
 
         printf("[Sender] Sent: %s\n", buffer);
     }
+    return NULL;
 }
 
-void recv_coroutine(const void *arg) {
+void *recv_coroutine(const void *arg) {
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
     char buffer[BUFFER_SIZE];
@@ -54,6 +55,7 @@ void recv_coroutine(const void *arg) {
         buffer[recv_bytes] = '\0';
         printf("[Receiver] Received: %s\n", buffer);
     }
+    return NULL;
 }
 
 int main() {

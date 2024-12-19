@@ -12,6 +12,7 @@ make test_rdwr LOG_LEVEL=LOG_DEBUG
 ```
 
 ## 接口
+- 手动调度与自动调度通用：
 ```C
 /*
 创建协程，返回句柄;
@@ -22,19 +23,8 @@ stack_size是栈大小，可以用0表示由框架指定;
 */
 coroutine_t coroutine_create(void (*func)(const void *), void *arg, size_t stack_size);
 
-//唤醒协程co，只用于手动调度，被唤醒的协程挂起后会回到本协程
-void coroutine_resume(coroutine_t handle);
-
 //挂起当前协程
 void coroutine_yield();
-
-//释放已经结束的手动调度的协程内存
-//只能用于手动调度
-void coroutine_free(coroutine_t handle);
-
-//等待协程运行结束并释放协程内存
-//只能用于自动调度
-void coroutine_join(coroutine_t handle);
 
 //强制结束协程
 //手动调度的协程结束后需要用coroutine_free回收
@@ -51,6 +41,23 @@ void unable_hook();
 bool is_hook_enabled();
 
 // 支持hook的函数：read,write,send,recv,sendto,recvfrom,accept,connect,setsockopt
+```
+- 手动调度专用：
+```C
+//唤醒协程co，被唤醒的协程挂起后会回到本协程
+void coroutine_resume(coroutine_t handle);
+
+//获取协程返回值
+//需要协程运行完毕后才能使用
+void* coroutine_get_return_val(coroutine_t handle);
+
+//释放已经结束的手动调度的协程内存
+void coroutine_free(coroutine_t handle);
+```
+- 自动调度专用：
+```C
+//等待协程运行结束并释放协程内存
+void coroutine_join(coroutine_t handle);
 ```
 
 ## 示例

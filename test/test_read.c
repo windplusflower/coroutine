@@ -1,18 +1,20 @@
 #include "coheader.h"
 
 char buf[1024];
-void read_test(const void *) {
+void* read_test(const void*) {
     while (1) {
         printf("please input:\n");
         read(0, buf, 1024);
         printf("Read from cmd:%s\n", buf);
     }
+    return NULL;
 }
-void testing_read_suspend(const void *) {
+void* testing_read_suspend(const void*) {
     while (1) {
         printf("read was not running now!\n");
         co_sleep(1);
     }
+    return NULL;
 }
 int main() {
     enable_hook();

@@ -11,7 +11,7 @@
 int PORT = 1000;
 #define BUFFER_SIZE 1024
 
-void send_coroutine(const void* arg) {
+void* send_coroutine(const void* arg) {
     int server_sock;
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
@@ -20,7 +20,7 @@ void send_coroutine(const void* arg) {
 
     if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("Socket creation failed");
-        return;
+        return NULL;
     }
 
     server_addr.sin_family = AF_INET;
@@ -28,18 +28,18 @@ void send_coroutine(const void* arg) {
     server_addr.sin_addr.s_addr = INADDR_ANY;
     if (bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
         perror("Bind failed");
-        return;
+        return NULL;
     }
 
     if (listen(server_sock, 3) < 0) {
         perror("Listen failed");
-        return;
+        return NULL;
     }
 
     printf("Server is listening on port %d\n", PORT);
     if ((client_sock = accept(server_sock, (struct sockaddr*)&server_addr, &addr_len)) < 0) {
         perror("Accept failed");
-        return;
+        return NULL;
     }
     printf("accept success\n");
     while (1) {
@@ -53,17 +53,18 @@ void send_coroutine(const void* arg) {
 
     close(client_sock);
     close(server_sock);
-    return;
+
+    return NULL;
 }
 
-void recv_coroutine(const void* arg) {
+void* recv_coroutine(const void* arg) {
     int client_sock;
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
 
     if ((client_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("Socket creation failed");
-        return;
+        return NULL;
     }
 
     server_addr.sin_family = AF_INET;
@@ -72,21 +73,21 @@ void recv_coroutine(const void* arg) {
 
     if (connect(client_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
         perror("Connection failed");
-        return;
+        return NULL;
     }
     printf("connect success\n");
     while (1) {
         int bytes_received = recv(client_sock, buffer, BUFFER_SIZE, 0);
         if (bytes_received < 0) {
             perror("Receive failed");
-            break;
+            return NULL;
         }
         buffer[bytes_received] = '\0';
         printf("Received: %s\n", buffer);
     }
 
     close(client_sock);
-    return;
+    return NULL;
 }
 
 int main() {

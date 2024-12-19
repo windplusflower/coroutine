@@ -6,14 +6,15 @@
 
 #include "coheader.h"
 int fd[2];
-void read_pipe(const void *) {
+void* read_pipe(const void*) {
     int buf[1000];
     while (1) {
         int ret = read(fd[0], buf, 1000);
         printf("%d bytes read finished\n", ret);
     }
+    return NULL;
 }
-void write_pipe(const void *) {
+void* write_pipe(const void*) {
     int buf[10000];
     int cnt = 0;
     while (1) {
@@ -23,6 +24,7 @@ void write_pipe(const void *) {
         printf("%d bytes write finished %d\n", ret, cnt);
         cnt++;
     }
+    return NULL;
 }
 int main() {
     enable_hook();

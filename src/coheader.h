@@ -6,12 +6,13 @@
 
 typedef int coroutine_t;
 
-int coroutine_create(void (*func)(const void *), const void *arg, size_t stack_size);
+coroutine_t coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size);
 void coroutine_resume(int handle);
 void coroutine_yield();
-void coroutine_join(int handle);
+void *coroutine_join(int handle);
 void coroutine_free(int handle);
 void coroutine_cancel(int handle);
+void *coroutine_get_return_val(int handle);
 /*********************************************/
 
 // hook的函数：read,write,send,recv,sendto,recvfrom,accept,aonnect,setsockopt

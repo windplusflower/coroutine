@@ -2,8 +2,8 @@
 
 #include "coheader.h"
 int recnum = 0;
-void auto_rec(const void *) {
-    if (recnum >= 5) return;
+void *auto_rec(const void *) {
+    if (recnum >= 5) return NULL;
     char name[2];
     name[0] = 'a';
     name[1] = '\0';
@@ -16,10 +16,11 @@ void auto_rec(const void *) {
     coroutine_join(co1);
     coroutine_join(co2);
     printf("co %s finished\n", name);
+    return NULL;
 }
-void hand_rec(const void *depth) {
+void *hand_rec(const void *depth) {
     int d = *(int *)depth;
-    if (d >= 3) return;
+    if (d >= 3) return NULL;
     char name[2];
     name[0] = '0';
     name[1] = '\0';
@@ -32,6 +33,7 @@ void hand_rec(const void *depth) {
     coroutine_resume(co1);
     coroutine_resume(co2);
     printf("co depth %s finished\n", name);
+    return NULL;
 }
 int main() {
     printf("***************test auto rec**************\n");
