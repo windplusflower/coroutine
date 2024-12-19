@@ -16,7 +16,6 @@ void enable_hook();
 void unable_hook();
 bool is_hook_enabled();
 void init_hook();
-
 /********************************************************************************************/
 ssize_t co_read(int fd, void *buf, size_t nbyte);
 ssize_t co_write(int fd, const void *buf, size_t nbyte);

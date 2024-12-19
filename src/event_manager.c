@@ -99,6 +99,7 @@ void show_list(EventList* list) {
         p = p->next;
         strcat(buf, p->co->name);
         strcat(buf, " ");
+        if (strlen(buf) > 1000) break;
     }
 
     log_debug("event_list: %s", buf);

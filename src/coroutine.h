@@ -60,9 +60,7 @@ int alloc_id();
 Coroutine *get_coroutine_by_id(int id);
 void free_id(int id);
 
-void start_eventloop();
-
-int coroutine_create(void (*func)(const void *), const void *arg, size_t stack_size);
+int coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size);
 void coroutine_resume(int handle);
 void coroutine_yield();
 void *coroutine_join(int handle);

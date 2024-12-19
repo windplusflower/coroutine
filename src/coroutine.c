@@ -21,8 +21,8 @@ void show_call_stack() {
     for (int i = 0; i < ENV.size; i++) {
         strcat(buf, ENV.call_stack[i]->name);
         if (i + 1 != ENV.size) strcat(buf, "->");
+        if (strlen(buf) > 1000) break;
     }
-
     log_debug("call_stack: %s", buf);
 #endif
 }
@@ -141,6 +141,17 @@ void eventloop_init() {
 #endif
 }
 
+//结束协程
+void coroutine_finish() {
+    show_call_stack();
+    Coroutine *current_coroutine = env_pop();
+    Coroutine *upcoming_coroutine = get_current_coroutine();
+    current_coroutine->status = COROUTINE_DEAD;
+#ifdef USE_DEBUG
+    log_debug("%s finished and yield to %s", current_coroutine->name, upcoming_coroutine->name);
+#endif
+    swap_context(&current_coroutine->context, &upcoming_coroutine->context);
+}
 //函数封装
 void func_wrapper() {
     Coroutine *co = get_current_coroutine();
@@ -149,7 +160,7 @@ void func_wrapper() {
 }
 
 //创建协程
-int coroutine_create(void (*func)(const void *), const void *arg, size_t stack_size) {
+int coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size) {
     eventloop_init();
     if (stack_size <= 0) stack_size = STACKSIZE;
     Coroutine *co = (Coroutine *)malloc(sizeof(Coroutine));
@@ -221,18 +232,6 @@ void coroutine_yield() {
 
 #ifdef USE_DEBUG
     log_debug("%s yield to %s", current_coroutine->name, upcoming_coroutine->name);
-#endif
-    swap_context(&current_coroutine->context, &upcoming_coroutine->context);
-}
-
-//结束协程
-void coroutine_finish() {
-    show_call_stack();
-    Coroutine *current_coroutine = env_pop();
-    Coroutine *upcoming_coroutine = get_current_coroutine();
-    current_coroutine->status = COROUTINE_DEAD;
-#ifdef USE_DEBUG
-    log_debug("%s finished and yield to %s", current_coroutine->name, upcoming_coroutine->name);
 #endif
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }

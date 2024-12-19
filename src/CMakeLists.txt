@@ -14,5 +14,4 @@ file(GLOB SRC_FILES
 
 add_library(src SHARED ${SRC_FILES})
 
-target_link_libraries(src PUBLIC dl)
 target_include_directories(src PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
