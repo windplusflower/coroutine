@@ -33,7 +33,10 @@ void init_eventmanager() {
     EVENT_MANAGER.events = (epoll_event*)malloc(EVENTSIZE * sizeof(epoll_event));
     //初始大小设多大无妨，因为会动态调整大小
     EVENT_MANAGER.time_heap = heap_create(1024);
+
+#ifdef USE_DEBUG
     log_debug("Event manager init finished");
+#endif
 }
 
 //生成结点
@@ -88,6 +91,7 @@ bool is_emptylist(EventList* list) {
 }
 
 void show_list(EventList* list) {
+#ifdef USE_DEBUG
     EventNode* p = list->head;
     char buf[1024];
     buf[0] = '\0';
@@ -96,17 +100,20 @@ void show_list(EventList* list) {
         strcat(buf, p->co->name);
         strcat(buf, " ");
     }
+
     log_debug("event_list: %s", buf);
+#endif
 }
 
 void show_epoll() {
+#ifdef USE_DEBUG
     log_debug("****************epoll****************");
     for (int i = 0; i < 1024; i++) {
         if (EVENT_MANAGER.waiting_co[i] == NULL) continue;
-        log_debug("fd: %d", i);
         show_list(EVENT_MANAGER.waiting_co[i]);
     }
     log_debug("***************epoll****************");
+#endif
 }
 
 //将协程添加到准备队列
@@ -162,7 +169,10 @@ bool wait_event(epoll_event* event, int timeout) {
             heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
         }
     }
+
+#ifdef USE_DEBUG
     log_debug("%s wait event(%dms) and yield", co->name, timeout);
+#endif
     // add_event是由重写的系统函数调用的，因此需要yield，当描述符可用时由调度器唤醒。
     coroutine_yield();
     bool res = co->timeout ^ 1;
@@ -221,7 +231,10 @@ void awake() {
         }
         node->co->timeout = 1;
         free_node(node);
+
+#ifdef USE_DEBUG
         log_debug("%s time out", node->co->name);
+#endif
         node->co->in_epoll = false;
         add_coroutine(node->co);
     }

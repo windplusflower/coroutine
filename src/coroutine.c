@@ -15,13 +15,16 @@
 #include "utils.h"
 
 void show_call_stack() {
+#ifdef USE_DEBUG
     char buf[1024];
     buf[0] = '\0';
     for (int i = 0; i < ENV.size; i++) {
         strcat(buf, ENV.call_stack[i]->name);
         if (i + 1 != ENV.size) strcat(buf, "->");
     }
+
     log_debug("call_stack: %s", buf);
+#endif
 }
 
 //初始化hanlde与coroutine之间的映射表，可动态扩容
@@ -129,7 +132,9 @@ void eventloop_init() {
     env_push(co);
     main_coroutine_init();
 
+#ifdef USE_DEBUG
     log_debug("eventloop init finished");
+#endif
 }
 
 //函数封装
@@ -186,7 +191,10 @@ void coroutine_resume(int handle) {
     if (cur != ENV.eventloop_coroutine) {
         co->auto_schedule = false;
     }
+
+#ifdef USE_DEBUG
     log_debug("%s resume to %s", cur->name, co->name);
+#endif
     swap_context(&cur->context, &co->context);
 }
 
@@ -199,7 +207,10 @@ void coroutine_yield() {
     current_coroutine->status = COROUTINE_SUSPENDED;
     if (current_coroutine->auto_schedule && !current_coroutine->in_epoll)
         add_coroutine(current_coroutine);
+
+#ifdef USE_DEBUG
     log_debug("%s yield to %s", current_coroutine->name, upcoming_coroutine->name);
+#endif
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
 
@@ -209,7 +220,10 @@ void coroutine_finish() {
     Coroutine *current_coroutine = env_pop();
     Coroutine *upcoming_coroutine = get_current_coroutine();
     current_coroutine->status = COROUTINE_DEAD;
+
+#ifdef USE_DEBUG
     log_debug("%s finished and yield to %s", current_coroutine->name, upcoming_coroutine->name);
+#endif
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
 

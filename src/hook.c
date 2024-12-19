@@ -257,7 +257,10 @@ int co_setsockopt(int fd, int level, int option_name, const void *option_value,
     if (res) return res;
     if (SOL_SOCKET == level) {
         struct timeval *val = (struct timeval *)option_value;
+
+#ifdef USE_DEBUG
         log_debug("fd %d:set time out %d", fd, get_timeout(val) + 1);
+#endif
         if (SO_RCVTIMEO == option_name) {
             set_timeout(&event_manager->recv_timeout[fd], (struct timeval *)option_value);
         } else if (SO_SNDTIMEO == option_name) {
