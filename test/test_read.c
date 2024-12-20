@@ -12,7 +12,7 @@ void* read_test(const void*) {
 void* testing_read_suspend(const void*) {
     while (1) {
         printf("read was not running now!\n");
-        co_sleep(1);
+        sleep(1);
     }
     return NULL;
 }

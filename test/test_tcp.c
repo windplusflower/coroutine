@@ -48,7 +48,7 @@ void* send_coroutine(const void* arg) {
             perror("Send failed");
             break;
         }
-        co_sleep(1);
+        sleep(1);
     }
 
     close(client_sock);

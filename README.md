@@ -54,7 +54,7 @@ void unable_hook();
 //检查是否开启了hook
 bool is_hook_enabled();
 
-// 支持hook的函数：read,write,send,recv,sendto,recvfrom,accept,connect,setsockopt
+// 支持hook的函数：read,write,send,recv,sendto,recvfrom,accept,connect,setsockopt,sleep,usleep
 ```
 - 手动调度专用：
 ```C

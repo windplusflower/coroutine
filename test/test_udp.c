@@ -24,7 +24,7 @@ void *send_coroutine(const void *arg) {
     inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr);
 
     while (1) {
-        co_sleep(1);
+        sleep(1);
         snprintf(buffer, BUFFER_SIZE, "Hello from sender: %ld", time(NULL));
         ssize_t sent_bytes = sendto(sockfd, buffer, strlen(buffer), 0,
                                     (struct sockaddr *)&server_addr, sizeof(server_addr));

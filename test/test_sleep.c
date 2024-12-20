@@ -1,7 +1,7 @@
 #include "coheader.h"
 void* slp(const void*) {
     while (1) {
-        co_sleep(1);
+        sleep(1);
         printf("I sleep 1 second\n");
     }
     return NULL;

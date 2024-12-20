@@ -50,7 +50,7 @@ void* send_coroutine(const void* arg) {
             break;
         }
         // //每三秒发送一次消息
-        co_sleep(3);
+        sleep(3);
     }
 
     close(client_sock);

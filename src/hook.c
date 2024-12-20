@@ -353,18 +353,18 @@ int setsockopt(int fd, int level, int option_name, const void *option_value, soc
         return sys_setsockopt(fd, level, option_name, option_value, option_len);
 }
 
-// unsigned int sleep(unsigned int seconds) {
-//     init_hook();
-//     if (is_hook_enabled())
-//         sys_sleep(seconds);
-//     else
-//         sys_sleep(seconds);
-// }
+unsigned int sleep(unsigned int seconds) {
+    init_hook();
+    if (is_hook_enabled())
+        co_sleep(seconds);
+    else
+        sys_sleep(seconds);
+}
 
-// int usleep(useconds_t useconds) {
-//     init_hook();
-//     if (is_hook_enabled())
-//         sys_usleep(useconds);
-//     else
-//         sys_usleep(useconds);
-// }
+int usleep(useconds_t useconds) {
+    init_hook();
+    if (is_hook_enabled())
+        co_usleep(useconds);
+    else
+        sys_usleep(useconds);
+}
