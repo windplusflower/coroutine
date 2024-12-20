@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "coheader.h"
+#include "coroutine.h"
 int recnum = 0;
 void *auto_rec(const void *) {
     if (recnum >= 5) return NULL;
@@ -32,6 +33,8 @@ void *hand_rec(const void *depth) {
     co2 = coroutine_create(hand_rec, &d, 0);
     coroutine_resume(co1);
     coroutine_resume(co2);
+    coroutine_free(co1);
+    coroutine_free(co2);
     printf("co depth %s finished\n", name);
     return NULL;
 }

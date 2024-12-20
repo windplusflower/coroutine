@@ -13,6 +13,7 @@ void *coroutine_join(int handle);
 void coroutine_free(int handle);
 void coroutine_cancel(int handle);
 void *coroutine_get_return_val(int handle);
+bool coroutine_is_finished(coroutine_t handle);
 /*********************************************/
 
 // hook的函数：read,write,send,recv,sendto,recvfrom,accept,aonnect,setsockopt

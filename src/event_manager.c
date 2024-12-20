@@ -219,7 +219,6 @@ void awake() {
             //否则不监听
             epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_DEL, fd, NULL);
     }
-
     //把超时的进程加入执行队列
     long long now = get_now();
     EventNode* node;
@@ -230,14 +229,13 @@ void awake() {
             free_node(node);
             continue;
         }
-        node->co->timeout = 1;
-        free_node(node);
-
 #ifdef USE_DEBUG
         log_debug("%s time out", node->co->name);
 #endif
+        node->co->timeout = 1;
         node->co->in_epoll = false;
         add_coroutine(node->co);
+        free_node(node);
     }
 }
 
@@ -249,11 +247,16 @@ void event_loop() {
         show_list(EVENT_MANAGER.active_list);
         if (is_emptylist(EVENT_MANAGER.active_list)) continue;
         Coroutine* co = pop_front(EVENT_MANAGER.active_list);
+        if (co->auto_schedule == false) continue;
         if (co->status == COROUTINE_DEAD) {
             //不需要释放内存，等待join时释放
             continue;
         }
-        if (co->auto_schedule == false) continue;
+        if (co->status == COROUTINE_CANCELED) {
+            //需要释放内存
+            coroutine_free(co->handle);
+            continue;
+        }
         coroutine_resume(co->handle);
     }
 }
