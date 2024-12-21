@@ -116,7 +116,6 @@ void eventloop_init() {
     log_set_level_from_env();
     init_coroutine_table();
     init_eventmanager();
-    init_hook();
 
     ENV.eventloop_coroutine = (Coroutine *)malloc(sizeof(Coroutine));
     ENV.size = 0;
@@ -227,6 +226,7 @@ void coroutine_resume(int handle) {
 
 //挂起协程
 void coroutine_yield() {
+    eventloop_init();
     show_call_stack();
     Coroutine *current_coroutine = env_pop();
     Coroutine *upcoming_coroutine = get_current_coroutine();

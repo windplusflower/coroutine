@@ -58,6 +58,7 @@ __thread static CoroutineEnv ENV;
 __thread static CoroutineTable TABLE;
 
 void init_coroutine_table();
+void eventloop_init();
 int alloc_id();
 Coroutine *get_coroutine_by_id(int id);
 void free_id(int id);

@@ -7,6 +7,7 @@
 #include "event_manager.h"
 #include "log.h"
 #include "utils.h"
+#include "coroutine.h"
 /*****************************************************************************/
 typedef ssize_t (*read_t)(int fildes, void *buf, size_t nbyte);
 typedef ssize_t (*write_t)(int fildes, const void *buf, size_t nbyte);
@@ -54,6 +55,7 @@ void init_hook() {
     if (has_inited) return;
     has_inited = true;
 
+    eventloop_init();
     sys_read = (read_t)dlsym(RTLD_NEXT, "read");
     sys_write = (write_t)dlsym(RTLD_NEXT, "write");
 
