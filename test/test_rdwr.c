@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "coheader.h"
+#include "hook.h"
 int fd[2];
 void* read_pipe(const void*) {
     int buf[1000];
@@ -19,7 +20,9 @@ void* write_pipe(const void*) {
     int cnt = 0;
     while (1) {
         //这里要用阻塞的sleep，不然cpu会让给read，导致无法填满管道
+        disable_hook();
         sleep(1);
+        enable_hook();
         int ret = write(fd[1], buf, 10000);
         printf("%d bytes write finished %d\n", ret, cnt);
         cnt++;

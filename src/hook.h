@@ -13,7 +13,7 @@
 #include <sys/types.h>
 
 void enable_hook();
-void unable_hook();
+void disable_hook();
 bool is_hook_enabled();
 void init_hook();
 /********************************************************************************************/

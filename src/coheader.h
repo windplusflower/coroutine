@@ -19,7 +19,7 @@ bool coroutine_is_finished(coroutine_t handle);
 // hook的函数：read,write,send,recv,sendto,recvfrom,accept,aonnect,setsockopt
 
 void enable_hook();
-void unable_hook();
+void disable_hook();
 bool is_hook_enabled();
 
 /********************************************************************************************/

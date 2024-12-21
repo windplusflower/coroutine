@@ -76,7 +76,7 @@ void enable_hook() {
     is_hooked = true;
 }
 
-void unable_hook() {
+void disable_hook() {
     is_hooked = false;
 }
 

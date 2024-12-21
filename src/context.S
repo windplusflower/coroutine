@@ -8,14 +8,22 @@ swap_context:
     # 故不需要手动保存
     movq %rbx, 0(%rdi)
     movq %rbp, 8(%rdi)
-    # 此时栈顶是"swap_context下一条指令地址"，正是返回此协程后需要运行的位置，所以不用修改
+    # 此时栈顶是swap_context下一条指令地址，正是返回此协程后需要运行的位置，所以不用修改
     # 之后set_context返回时，会直接返回到"swap_context下一条指令地址"
     movq %rsp, 16(%rdi)
     movq %r12, 24(%rdi)
     movq %r13, 32(%rdi)
     movq %r14, 40(%rdi)
     movq %r15, 48(%rdi)
+    pushfq 
+    popq %rax
+    movq %rax, 56(%rdi) #保存rflags
+    fxsave 64(%rdi)
     
+    fxrstor 64(%rsi)
+    movq 56(%rsi), %rax
+    pushq %rax
+    popfq
     movq 0(%rsi), %rbx
     movq 8(%rsi), %rbp
     movq 16(%rsi), %rsp

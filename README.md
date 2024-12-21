@@ -10,6 +10,7 @@
 6. 实现hook机制，开启hook后即可像使用原版函数一样使用各函数。
 7. 使用小根堆来实现超时机制。
 8. 协程创建后即投入运行，不需要手动启动，不需要手动开启事件循环，支持获取返回值，使协程的使用方式更接近linux线程。
+9. 除了通用寄存器外，切换协程时还会保存浮点寄存器和标志寄存器
 
 ## 运行
 使用`make testname`即可运行相应的test
@@ -49,7 +50,7 @@ bool coroutine_is_finished(coroutine_t handle);
 void enable_hook();
 
 //关闭hook机制
-void unable_hook();
+void disable_hook();
 
 //检查是否开启了hook
 bool is_hook_enabled();
