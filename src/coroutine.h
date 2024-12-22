@@ -30,6 +30,7 @@ typedef struct Coroutine {
     const char *name;  //用于调试
 #endif
     bool auto_schedule;  //默认自动调度
+    bool is_detached;    //是否分离
     bool in_epoll;       //是否在等待事件
     bool timeout;        //是否因timeout而被唤醒
     int fd;              //当前协程因哪个fd而挂起

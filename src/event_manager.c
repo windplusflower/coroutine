@@ -249,7 +249,9 @@ void event_loop() {
         Coroutine* co = pop_front(EVENT_MANAGER.active_list);
         if (co->auto_schedule == false) continue;
         if (co->status == COROUTINE_DEAD) {
-            //不需要释放内存，等待join时释放
+            //分离的需要释放
+            if (co->is_detached) coroutine_free(co->handle);
+            //其它不需要释放内存，等待join时释放
             continue;
         }
         if (co->status == COROUTINE_CANCELED) {

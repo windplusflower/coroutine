@@ -7,16 +7,17 @@
 typedef int coroutine_t;
 
 coroutine_t coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size);
-void coroutine_resume(int handle);
+void coroutine_resume(coroutine_t handle);
 void coroutine_yield();
-void *coroutine_join(int handle);
-void coroutine_free(int handle);
-void coroutine_cancel(int handle);
-void *coroutine_get_return_val(int handle);
+void *coroutine_join(coroutine_t handle);
+void coroutine_detach(coroutine_t handle);
+void coroutine_free(coroutine_t handle);
+void coroutine_cancel(coroutine_t handle);
+void *coroutine_get_return_val(coroutine_t handle);
 bool coroutine_is_finished(coroutine_t handle);
 /*********************************************/
 
-// hook的函数：read,write,send,recv,sendto,recvfrom,accept,aonnect,setsockopt
+// hook的函数：read,write,send,recv,sendto,recvfrom,accept,aonnect,setsockopt,sleep,usleep
 
 void enable_hook();
 void disable_hook();

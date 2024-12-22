@@ -125,6 +125,7 @@ void eventloop_init() {
     Coroutine *co = ENV.eventloop_coroutine;
     co->stack_size = STACKSIZE;
     co->stack = malloc(STACKSIZE);
+    co->handle = -1;
 #ifdef USE_DEBUG
     co->name = "event_loop";
 #endif
@@ -173,6 +174,7 @@ int coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_
     co->stack_size = stack_size;
     co->stack = malloc(stack_size);
     co->auto_schedule = true;
+    co->is_detached = false;
     co->in_epoll = false;
     co->timeout = false;
     co->waited_co = NULL;
@@ -206,11 +208,15 @@ void coroutine_resume(int handle) {
         return;
     }
     if (co->status == COROUTINE_DEAD) {
-        log_error("You can't resume a finished coroutine %d", handle);
+        log_error("You can't resume a finished coroutine %d!", handle);
+        return;
+    }
+    Coroutine *cur = get_current_coroutine();
+    if (co->is_detached && cur->handle != -1) {
+        log_error("You can't resume a detached coroutine %d!", handle);
         return;
     }
     co->status = COROUTINE_RUNNING;
-    Coroutine *cur = get_current_coroutine();
     //即便是主进程，resume时也需要加入调用栈，因为此时是由主进程来调度目标协程。
     env_push(co);
     //并不是由eventloop调用的resume，说明目标协程需要手动调度。
@@ -248,6 +254,10 @@ void coroutine_free(int handle) {
         log_error("Handle %d not exist!", handle);
         return;
     }
+    if (co->is_detached) {
+        log_error("You can't free a detached coroutine %d!", handle);
+        return;
+    }
     if (co->status != COROUTINE_DEAD) {
         log_error("Coroutine %d has not finished!", handle);
         return;
@@ -268,6 +278,10 @@ void *coroutine_join(int handle) {
         log_error("You can't join a no auto schedule coroutine!");
         return NULL;
     }
+    if (co->is_detached) {
+        log_error("You can't free a detached coroutine %d!", handle);
+        return NULL;
+    }
     if (co->status != COROUTINE_DEAD && co->status != COROUTINE_CANCELED) {
         if (co->waited_co != NULL) {
             log_error("Coroutine %d has been join by other coroutine!", handle);
@@ -285,6 +299,23 @@ void *coroutine_join(int handle) {
     void *res = co->return_val;
     coroutine_free(handle);
     return res;
+}
+
+void coroutine_detach(int handle) {
+    Coroutine *co = get_coroutine_by_id(handle);
+    if (co == NULL) {
+        log_error("Handle %d not exist!", handle);
+        return;
+    }
+    if (co->is_detached) {
+        log_error("Coroutine %d has already detached!", handle);
+        return;
+    }
+    if (!co->auto_schedule) {
+        log_error("You can't detach a non-auto-scheduled coroutine %d!", handle);
+        return;
+    }
+    co->is_detached = 1;
 }
 
 //杀死协程
