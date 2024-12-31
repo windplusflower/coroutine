@@ -14,78 +14,48 @@
 #include "hook.h"
 #include "utils.h"
 
-void show_call_stack() {
-#ifdef USE_DEBUG
-    char buf[1024];
-    buf[0] = '\0';
-    for (int i = 0; i < ENV.size; i++) {
-        strcat(buf, ENV.call_stack[i]->name);
-        if (i + 1 != ENV.size) strcat(buf, "->");
-        if (strlen(buf) > 1000) break;
-    }
-    log_debug("call_stack: %s", buf);
-#endif
-}
-
 //初始化hanlde与coroutine之间的映射表，可动态扩容
 void init_coroutine_table() {
-    TABLE.capacity = TABLESIZE;
-    TABLE.size = TABLESIZE;
-    TABLE.co_table = (Coroutine **)calloc(TABLESIZE, sizeof(Coroutine *));
-    TABLE.unused = (int *)malloc(TABLESIZE * sizeof(int));
-    for (int i = 0; i < TABLESIZE; i++) TABLE.unused[i] = i;
+    ENV.table.capacity = TABLESIZE;
+    ENV.table.size = TABLESIZE;
+    ENV.table.co_table = (Coroutine **)calloc(TABLESIZE, sizeof(Coroutine *));
+    ENV.table.unused = (int *)malloc(TABLESIZE * sizeof(int));
+    for (int i = 0; i < TABLESIZE; i++) ENV.table.unused[i] = i;
 }
 
 //分配Handle
 int alloc_id() {
-    if (TABLE.size == 0) {
-        int n = TABLE.capacity;
-        TABLE.capacity = n * 2;
-        TABLE.size = n;
-        TABLE.co_table = realloc(TABLE.co_table, n * 2 * sizeof(Coroutine *));
+    if (ENV.table.size == 0) {
+        int n = ENV.table.capacity;
+        ENV.table.capacity = n * 2;
+        ENV.table.size = n;
+        ENV.table.co_table = realloc(ENV.table.co_table, n * 2 * sizeof(Coroutine *));
         //虽然现在unused只需要n的空间，但是后续可能会有新的句柄从co_table中释放，最大可以到2*n
-        TABLE.unused = realloc(TABLE.unused, n * 2 * sizeof(int));
-        for (int i = n; i < n * 2; i++) TABLE.unused[i - n] = i;
+        ENV.table.unused = realloc(ENV.table.unused, n * 2 * sizeof(int));
+        for (int i = n; i < n * 2; i++) ENV.table.unused[i - n] = i;
     }
-    TABLE.size--;
-    return TABLE.unused[TABLE.size];
+    ENV.table.size--;
+    return ENV.table.unused[ENV.table.size];
 }
 
 //根据handle获取Coroutine
 Coroutine *get_coroutine_by_id(int id) {
-    return TABLE.co_table[id];
+    return ENV.table.co_table[id];
 }
 
 //释放Handle
 void free_id(int id) {
-    TABLE.co_table[id] = NULL;
-    TABLE.unused[TABLE.size++] = id;
-}
-
-//压入调用栈
-void env_push(Coroutine *co) {
-    if (ENV.size >= ENV.capacity) {
-        ENV.capacity *= 2;
-        ENV.call_stack = realloc(ENV.call_stack, ENV.capacity * sizeof(Coroutine *));
-    }
-    ENV.call_stack[ENV.size++] = co;
-}
-
-//弹出调用栈
-Coroutine *env_pop() {
-    assert(ENV.size > 0);
-    //有大量空余时释放内存，最少减到STACKSEPTH
-    if (ENV.size * 4 < ENV.capacity && ENV.capacity > STACKDEPTH) {
-        ENV.capacity /= 2;
-        ENV.call_stack = realloc(ENV.call_stack, ENV.capacity * sizeof(Coroutine *));
-    }
-    return ENV.call_stack[--ENV.size];
+    ENV.table.co_table[id] = NULL;
+    ENV.table.unused[ENV.table.size++] = id;
 }
 
 //获取当前协程
 Coroutine *get_current_coroutine() {
-    assert(ENV.size > 0);
-    return ENV.call_stack[ENV.size - 1];
+    return ENV.current_coroutine;
+}
+//获取当前协程
+Coroutine *get_eventloop_coroutine() {
+    return ENV.eventloop_coroutine;
 }
 
 //初始化主协程
@@ -102,8 +72,8 @@ Coroutine *main_coroutine_init() {
 #endif
     main_coroutine->in_epoll = false;
     main_coroutine->handle = alloc_id();
-    TABLE.co_table[main_coroutine->handle] = main_coroutine;
-    env_push(main_coroutine);
+    ENV.table.co_table[main_coroutine->handle] = main_coroutine;
+    ENV.current_coroutine = main_coroutine;
     return main_coroutine;
 }
 
@@ -117,9 +87,6 @@ void eventloop_init() {
     init_eventmanager();
 
     ENV.eventloop_coroutine = (Coroutine *)malloc(sizeof(Coroutine));
-    ENV.size = 0;
-    ENV.capacity = STACKDEPTH;
-    ENV.call_stack = (Coroutine **)malloc(STACKDEPTH * sizeof(Coroutine *));
 
     Coroutine *co = ENV.eventloop_coroutine;
     co->stack_size = STACKSIZE;
@@ -132,7 +99,6 @@ void eventloop_init() {
     co->context.ss_sp = co->stack;
     co->context.ss_size = STACKSIZE;
     make_context(&co->context, event_loop);
-    env_push(co);
     main_coroutine_init();
 
 #ifdef USE_DEBUG
@@ -142,9 +108,8 @@ void eventloop_init() {
 
 //结束协程
 void coroutine_finish() {
-    show_call_stack();
-    Coroutine *current_coroutine = env_pop();
-    Coroutine *upcoming_coroutine = get_current_coroutine();
+    Coroutine *current_coroutine = get_current_coroutine();
+    Coroutine *upcoming_coroutine = get_eventloop_coroutine();
     current_coroutine->status = COROUTINE_DEAD;
     if (current_coroutine->waited_co != NULL) {
         current_coroutine->waited_co->in_epoll = false;
@@ -153,6 +118,7 @@ void coroutine_finish() {
 #ifdef USE_DEBUG
     log_debug("%s finished and yield to %s", current_coroutine->name, upcoming_coroutine->name);
 #endif
+    ENV.current_coroutine = get_eventloop_coroutine();
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
 //函数封装
@@ -192,14 +158,13 @@ int coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_
     add_coroutine(co);
 
     int handle = alloc_id();
-    TABLE.co_table[handle] = co;
+    ENV.table.co_table[handle] = co;
     co->handle = handle;
     return handle;
 }
 
 //唤醒协程
 void coroutine_resume(int handle) {
-    show_call_stack();
     Coroutine *co = get_coroutine_by_id(handle);
     if (co == NULL) {
         log_error("Handle %d not exist!", handle);
@@ -214,9 +179,8 @@ void coroutine_resume(int handle) {
         log_error("You can't resume a detached coroutine %d!", handle);
         return;
     }
+    ENV.current_coroutine = co;
     co->status = COROUTINE_RUNNING;
-    //即便是主进程，resume时也需要加入调用栈，因为此时是由主进程来调度目标协程。
-    env_push(co);
 
 #ifdef USE_DEBUG
     log_debug("%s resume to %s", cur->name, co->name);
@@ -227,9 +191,8 @@ void coroutine_resume(int handle) {
 //挂起协程
 void coroutine_yield() {
     eventloop_init();
-    show_call_stack();
-    Coroutine *current_coroutine = env_pop();
-    Coroutine *upcoming_coroutine = get_current_coroutine();
+    Coroutine *current_coroutine = get_current_coroutine();
+    Coroutine *upcoming_coroutine = get_eventloop_coroutine();
     assert(current_coroutine->status == COROUTINE_RUNNING);
     current_coroutine->status = COROUTINE_SUSPENDED;
     if (!current_coroutine->in_epoll) add_coroutine(current_coroutine);
@@ -237,6 +200,7 @@ void coroutine_yield() {
 #ifdef USE_DEBUG
     log_debug("%s yield to %s", current_coroutine->name, upcoming_coroutine->name);
 #endif
+    ENV.current_coroutine = get_eventloop_coroutine();
     swap_context(&current_coroutine->context, &upcoming_coroutine->context);
 }
 

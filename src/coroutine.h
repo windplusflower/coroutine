@@ -38,12 +38,6 @@ typedef struct Coroutine {
     struct Coroutine *waited_co;  //等待自己结束的协程，用于join的通知
 } Coroutine;
 
-typedef struct CoroutineEnv {
-    Coroutine **call_stack;
-    int size, capacity;
-    Coroutine *eventloop_coroutine;
-} CoroutineEnv;
-
 //用于存储从句柄到协程的映射
 typedef struct CoroutineTable {
     Coroutine **co_table;
@@ -53,8 +47,13 @@ typedef struct CoroutineTable {
     int size, capacity;
 } CoroutineTable;
 
+typedef struct CoroutineEnv {
+    Coroutine *eventloop_coroutine;
+    Coroutine *current_coroutine;
+    CoroutineTable table;
+} CoroutineEnv;
+
 __thread static CoroutineEnv ENV;
-__thread static CoroutineTable TABLE;
 
 void init_coroutine_table();
 void eventloop_init();
@@ -67,6 +66,7 @@ void coroutine_resume(int handle);
 void coroutine_yield();
 void *coroutine_join(int handle);
 void coroutine_finish();
+void coroutine_free(int handle);
 
 Coroutine *get_current_coroutine();
 
