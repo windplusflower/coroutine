@@ -11,9 +11,6 @@ void coroutine_resume(coroutine_t handle);
 void coroutine_yield();
 void *coroutine_join(coroutine_t handle);
 void coroutine_detach(coroutine_t handle);
-void coroutine_free(coroutine_t handle);
-void coroutine_cancel(coroutine_t handle);
-void *coroutine_get_return_val(coroutine_t handle);
 bool coroutine_is_finished(coroutine_t handle);
 /*********************************************/
 

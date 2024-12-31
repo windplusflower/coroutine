@@ -4,14 +4,13 @@
 ## 本协程库特点
 1. 采用有栈协程，每个协程有自己独立的栈。
 2. 协程可嵌套、可递归，不限深度，只要内存够。
-3. 支持非对称式的手动调度和对称式的自动调度混用。
-4. 支持协程版本的函数与系统原版函数混用，即协程并不会对其它函数的行为产生影响。
-5. 类似linux多线程，协程创建后只返回一个int型的句柄，向用户屏蔽内部结构。
-6. 只需要包含一个头文件。
-7. 实现hook机制，开启hook后即可像使用原版函数一样使用各函数。
-8. 使用小根堆来实现超时机制。
-9. 协程创建后即投入运行，不需要手动启动，不需要手动开启事件循环，支持获取返回值，使协程的使用方式更接近linux线程。
-10. 除了通用寄存器外，切换协程时还会保存浮点寄存器和标志寄存器
+3. 支持协程版本的函数与系统原版函数混用，即协程并不会对其它函数的行为产生影响。
+4. 类似linux多线程，协程创建后只返回一个int型的句柄，向用户屏蔽内部结构。
+5. 只需要包含一个头文件。
+6. 实现hook机制，开启hook后即可像使用原版函数一样使用各函数。
+7. 使用小根堆来实现超时机制。
+8. 协程创建后即投入运行，不需要手动启动，不需要手动开启事件循环，支持获取返回值，使协程的使用方式更接近linux线程。
+9. 除了通用寄存器外，切换协程时还会保存浮点寄存器和标志寄存器
 
 ## 运行
 使用`make testname`即可运行相应的test
@@ -24,7 +23,6 @@ make test_rdwr LOG_LEVEL=LOG_DEBUG
 ```
 
 ## 接口
-- 手动调度与自动调度通用：
 ```C
 /*
 创建协程，返回句柄;
@@ -38,14 +36,15 @@ coroutine_t coroutine_create(void (*func)(const void *), void *arg, size_t stack
 //挂起当前协程
 void coroutine_yield();
 
-//强制结束协程
-//手动调度的协程结束后需要用coroutine_free回收
-//自动调度的协程不需要手动回收
-void coroutine_cancel(coroutine_t handle);
-
 //判断协程是否处于已结束未回收的状态
 //自动调度已经结束但还未调用join，或者手动调度已经结束但还未调用free
 bool coroutine_is_finished(coroutine_t handle);
+
+//等待协程运行结束，获取返回值，并释放协程内存
+void* coroutine_join(coroutine_t handle);
+
+//分离协程
+void coroutine_detach(coroutine_t handle);
 
 //开启hook机制
 void enable_hook();
@@ -58,51 +57,9 @@ bool is_hook_enabled();
 
 // 支持hook的函数：read,write,send,recv,sendto,recvfrom,accept,connect,setsockopt,sleep,usleep
 ```
-- 手动调度专用：
-```C
-//唤醒协程co，被唤醒的协程挂起后会回到本协程
-void coroutine_resume(coroutine_t handle);
-
-//获取协程返回值
-//需要协程运行完毕后才能使用
-void* coroutine_get_return_val(coroutine_t handle);
-
-//释放已经结束的手动调度的协程内存
-void coroutine_free(coroutine_t handle);
-```
-- 自动调度专用：
-```C
-//等待协程运行结束，获取返回值，并释放协程内存
-void* coroutine_join(coroutine_t handle);
-
-//分离协程
-void coroutine_detach(coroutine_t handle);
-```
 
 ## 示例
 - 使用：src目录下会被编译为共享库libsrc.so，头文件包含coheader.h，链接此共享库即可使用
-- 手动调度：
-```C
-#include "coheader.h"
-void func(const void* arg){
-    printf("A\n");
-    coroutine_yield();
-    printf("C\n");
-}
-int main(){
-    coroutine_t co=coroutine_create(func,NULL,0);
-    coroutine_resume(co);
-    printf("B\n");
-    coroutine_resume(co);
-    coroutine_free(co);
-}
-/*输出：
-A
-B
-C
-*/
-```
-- 自动调度：
 ```C
 #include "coheader.h"
 void func(const void* arg){
@@ -124,10 +81,9 @@ C
 
 ## 测例介绍
 所有测例均在对应源文件注释中给出了正确的输出
-- example1和example2是上面的示例
+- example是上面的示例
 - test_base测试基本功能
-- test_stack测试调用栈的动态扩容
-- test_recur测试自动调度和手动调度的嵌套创建
+- test_recur测试嵌套创建
 - test_return测试嵌套创建和协程返回值
 - test_rdwr,test_read,test_sleep,test_tcp,test_timeout,test_udp测试各调用阻塞时能否正常挂起协程
 
@@ -151,6 +107,7 @@ C
 - **24.12.20**: 修改join的机制，从轮询改为通知，减少协程切换的次数；修复对自动调度的协程调用cancel会发生内存泄漏的bug；添加接口用于查询协程是否结束；完善测例。
 - **24.12.21**: 添加切换上下文时对标志寄存器和浮点寄存器的保存。
 - **24.12.22**: 添加detach方法。
+- **24.12.31**: 移除手动调度相关函数和字段，移除对手动调度的支持。
 
 ## Debug 记录
 ### 2024.11.25~2024.11.26

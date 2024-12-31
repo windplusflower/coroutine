@@ -15,8 +15,7 @@ typedef enum {
     COROUTINE_READY,
     COROUTINE_RUNNING,
     COROUTINE_SUSPENDED,
-    COROUTINE_DEAD,
-    COROUTINE_CANCELED  //被cancel的协程需要自动释放内存
+    COROUTINE_DEAD
 } coroutine_status;
 
 typedef struct Coroutine {
@@ -29,11 +28,10 @@ typedef struct Coroutine {
 #ifdef USE_DEBUG
     const char *name;  //用于调试
 #endif
-    bool auto_schedule;  //默认自动调度
-    bool is_detached;    //是否分离
-    bool in_epoll;       //是否在等待事件
-    bool timeout;        //是否因timeout而被唤醒
-    int fd;              //当前协程因哪个fd而挂起
+    bool is_detached;  //是否分离
+    bool in_epoll;     //是否在等待事件
+    bool timeout;      //是否因timeout而被唤醒
+    int fd;            //当前协程因哪个fd而挂起
     struct epoll_event *event;  //当前协程为了监听哪个事件而挂起；当前协程因为收到哪个事件而被唤醒
     int handle;                   //协程对应的句柄
     void *return_val;             //协程返回值
@@ -68,8 +66,6 @@ int coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_
 void coroutine_resume(int handle);
 void coroutine_yield();
 void *coroutine_join(int handle);
-void coroutine_free(int handle);
-void coroutine_cancel(int handle);
 void coroutine_finish();
 
 Coroutine *get_current_coroutine();

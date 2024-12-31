@@ -100,7 +100,6 @@ Coroutine *main_coroutine_init() {
 #ifdef USE_DEBUG
     main_coroutine->name = "main";
 #endif
-    main_coroutine->auto_schedule = true;
     main_coroutine->in_epoll = false;
     main_coroutine->handle = alloc_id();
     TABLE.co_table[main_coroutine->handle] = main_coroutine;
@@ -173,7 +172,6 @@ int coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_
     co->arg = arg;
     co->stack_size = stack_size;
     co->stack = malloc(stack_size);
-    co->auto_schedule = true;
     co->is_detached = false;
     co->in_epoll = false;
     co->timeout = false;
@@ -219,10 +217,6 @@ void coroutine_resume(int handle) {
     co->status = COROUTINE_RUNNING;
     //即便是主进程，resume时也需要加入调用栈，因为此时是由主进程来调度目标协程。
     env_push(co);
-    //并不是由eventloop调用的resume，说明目标协程需要手动调度。
-    if (cur != ENV.eventloop_coroutine) {
-        co->auto_schedule = false;
-    }
 
 #ifdef USE_DEBUG
     log_debug("%s resume to %s", cur->name, co->name);
@@ -238,8 +232,7 @@ void coroutine_yield() {
     Coroutine *upcoming_coroutine = get_current_coroutine();
     assert(current_coroutine->status == COROUTINE_RUNNING);
     current_coroutine->status = COROUTINE_SUSPENDED;
-    if (current_coroutine->auto_schedule && !current_coroutine->in_epoll)
-        add_coroutine(current_coroutine);
+    if (!current_coroutine->in_epoll) add_coroutine(current_coroutine);
 
 #ifdef USE_DEBUG
     log_debug("%s yield to %s", current_coroutine->name, upcoming_coroutine->name);
@@ -274,15 +267,11 @@ void *coroutine_join(int handle) {
         log_error("Handle %d not exist!", handle);
         return NULL;
     }
-    if (co->auto_schedule == false) {
-        log_error("You can't join a no auto schedule coroutine!");
-        return NULL;
-    }
     if (co->is_detached) {
         log_error("You can't free a detached coroutine %d!", handle);
         return NULL;
     }
-    if (co->status != COROUTINE_DEAD && co->status != COROUTINE_CANCELED) {
+    if (co->status != COROUTINE_DEAD) {
         if (co->waited_co != NULL) {
             log_error("Coroutine %d has been join by other coroutine!", handle);
             return NULL;
@@ -290,10 +279,6 @@ void *coroutine_join(int handle) {
         co->waited_co = get_current_coroutine();
         co->waited_co->in_epoll = true;
         coroutine_yield();
-    }
-    if (co->status == COROUTINE_CANCELED) {
-        log_error("Coroutine %d has been canceled!", handle);
-        return NULL;
     }
     assert(co->status == COROUTINE_DEAD);
     void *res = co->return_val;
@@ -311,62 +296,14 @@ void coroutine_detach(int handle) {
         log_error("Coroutine %d has already detached!", handle);
         return;
     }
-    if (!co->auto_schedule) {
-        log_error("You can't detach a non-auto-scheduled coroutine %d!", handle);
-        return;
-    }
     co->is_detached = 1;
 }
 
-//杀死协程
-void coroutine_cancel(int handle) {
-    Coroutine *co = get_coroutine_by_id(handle);
-    if (co == NULL) {
-        log_error("Handle %d not exist!", handle);
-        return;
-    }
-    if (co->status == COROUTINE_DEAD) {
-        log_error("Handle %d has finished yet!", handle);
-        return;
-    }
-    if (co->status == COROUTINE_CANCELED) {
-        log_error("Handle %d has canceled yet!", handle);
-        return;
-    }
-    if (co == get_current_coroutine()) {
-        log_error("You can't cancel youself, please use \"return\"!");
-        return;
-    }
-    co->status = COROUTINE_CANCELED;
-}
-
-void *coroutine_get_return_val(int handle) {
-    Coroutine *co = get_coroutine_by_id(handle);
-    if (co == NULL) {
-        log_error("Handle %d not exist!", handle);
-        return NULL;
-    }
-    if (co->status == COROUTINE_CANCELED) {
-        log_error("You have canceled coroutine %d!", handle);
-        return NULL;
-    }
-    if (co->status != COROUTINE_DEAD) {
-        log_error("Coroutine %d has not finished!", handle);
-        return NULL;
-    }
-    if (co->auto_schedule == true) {
-        log_error(
-            "You can't use this func on auto-scheduled coroutine, please use \"coroutine_join()\" "
-            "instead!");
-        return NULL;
-    }
-    return co->return_val;
-}
 bool coroutine_is_finished(int handle) {
     Coroutine *co = get_coroutine_by_id(handle);
     if (co == NULL) {
         log_error("Coroutine %d not exist!", handle);
         return false;
     }
-    return co->status == COROUTINE_DEAD || co->status == COROUTINE_CANCELED;
+    return co->status == COROUTINE_DEAD;
 }
