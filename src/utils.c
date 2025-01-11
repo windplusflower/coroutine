@@ -22,7 +22,7 @@ void log_set_level_from_env() {
         } else if (strcmp(log_level, "LOG_FATAL") == 0) {
             log_set_level(LOG_FATAL);
         }
-    }
+    }else log_set_level(LOG_INFO);
 }
 
 //小根堆

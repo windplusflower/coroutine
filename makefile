@@ -4,6 +4,7 @@
 LOG_LEVEL ?= LOG_INFO
 C_FILES = $(wildcard ./test/*.c)
 C_BASENAMES = $(basename $(notdir $(C_FILES)))
+TEST_PATH=./build/test
 
 build:
 	@mkdir -p build
@@ -15,4 +16,8 @@ $(C_BASENAMES): build
 clean:
 	@rm -r build
 
-.PHONY: run build clean debug  $(C_BASENAMES) 
+speed: build
+	@test -f measure || gcc measure.c -o measure
+	@./cmp_speed.sh ${TEST_PATH}/thread_fib ${TEST_PATH}/coroutine_fib 
+
+.PHONY: run build clean debug  $(C_BASENAMES) speed
