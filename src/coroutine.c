@@ -235,7 +235,9 @@ void *coroutine_join(int handle) {
         log_error("You can't free a detached coroutine %d!", handle);
         return NULL;
     }
-    if (co->status != COROUTINE_DEAD) {
+    //以防用户主动调用resume启动本协程，正常情况下本协程只会由等待的协程唤醒
+    //去掉手动调度后，resume不必要暴露给用户，周一问问导师能不能直接不暴露resume
+    while (co->status != COROUTINE_DEAD) {
         if (co->waited_co != NULL) {
             log_error("Coroutine %d has been join by other coroutine!", handle);
             return NULL;
