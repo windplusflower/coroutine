@@ -6,6 +6,7 @@
 #include <sys/ucontext.h>
 
 #include "context.h"
+#include "utils.h"
 
 #define STACKSIZE 1024 * 128
 #define STACKDEPTH 128
@@ -38,28 +39,25 @@ typedef struct Coroutine {
     struct Coroutine *waited_co;  //等待自己结束的协程，用于join的通知
 } Coroutine;
 
-//用于存储从句柄到协程的映射
-typedef struct CoroutineTable {
-    Coroutine **co_table;
-    //未被使用的句柄
-    int *unused;
-    // size表示unused的大小
-    int size, capacity;
-} CoroutineTable;
+// //用于存储从句柄到协程的映射
+// typedef struct CoroutineTable {
+//     Coroutine **co_table;
+//     //未被使用的句柄
+//     int *unused;
+//     // size表示unused的大小
+//     int size, capacity;
+// } CoroutineTable;
 
 typedef struct CoroutineEnv {
     Coroutine *eventloop_coroutine;
     Coroutine *current_coroutine;
-    CoroutineTable table;
+    HandleTable table;
 } CoroutineEnv;
 
 __thread static CoroutineEnv ENV;
 
 void init_coroutine_table();
 void eventloop_init();
-int alloc_id();
-Coroutine *get_coroutine_by_id(int id);
-void free_id(int id);
 
 int coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size);
 void coroutine_resume(int handle);

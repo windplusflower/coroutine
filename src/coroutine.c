@@ -16,37 +16,22 @@
 
 //初始化hanlde与coroutine之间的映射表，可动态扩容
 void init_coroutine_table() {
-    ENV.table.capacity = TABLESIZE;
-    ENV.table.size = TABLESIZE;
-    ENV.table.co_table = (Coroutine **)calloc(TABLESIZE, sizeof(Coroutine *));
-    ENV.table.unused = (int *)malloc(TABLESIZE * sizeof(int));
-    for (int i = 0; i < TABLESIZE; i++) ENV.table.unused[i] = i;
+    ut_init_handle_table(&ENV.table);
 }
 
 //分配Handle
-int alloc_id() {
-    if (ENV.table.size == 0) {
-        int n = ENV.table.capacity;
-        ENV.table.capacity = n * 2;
-        ENV.table.size = n;
-        ENV.table.co_table = realloc(ENV.table.co_table, n * 2 * sizeof(Coroutine *));
-        //虽然现在unused只需要n的空间，但是后续可能会有新的句柄从co_table中释放，最大可以到2*n
-        ENV.table.unused = realloc(ENV.table.unused, n * 2 * sizeof(int));
-        for (int i = n; i < n * 2; i++) ENV.table.unused[i - n] = i;
-    }
-    ENV.table.size--;
-    return ENV.table.unused[ENV.table.size];
+int alloc_coroutine_id() {
+    return ut_alloc_id(&ENV.table);
 }
 
 //根据handle获取Coroutine
 Coroutine *get_coroutine_by_id(int id) {
-    return ENV.table.co_table[id];
+    return ut_get_item_by_id(&ENV.table, id);
 }
 
 //释放Handle
-void free_id(int id) {
-    ENV.table.co_table[id] = NULL;
-    ENV.table.unused[ENV.table.size++] = id;
+void free_coroutine_id(int id) {
+    ut_free_id(&ENV.table,id);
 }
 
 //获取当前协程
@@ -71,8 +56,8 @@ Coroutine *main_coroutine_init() {
     main_coroutine->name = "main";
 #endif
     main_coroutine->in_epoll = false;
-    main_coroutine->handle = alloc_id();
-    ENV.table.co_table[main_coroutine->handle] = main_coroutine;
+    main_coroutine->handle = alloc_coroutine_id();
+    ENV.table.table[main_coroutine->handle] = main_coroutine;
     ENV.current_coroutine = main_coroutine;
     return main_coroutine;
 }
@@ -157,8 +142,8 @@ int coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_
 #endif
     add_coroutine(co);
 
-    int handle = alloc_id();
-    ENV.table.co_table[handle] = co;
+    int handle = alloc_coroutine_id();
+    ENV.table.table[handle] = co;
     co->handle = handle;
     return handle;
 }
@@ -221,7 +206,7 @@ void coroutine_free(int handle) {
     }
     free(co->stack);
     free(co);
-    free_id(handle);
+    free_coroutine_id(handle);
 }
 
 //等待协程结束,返回返回值

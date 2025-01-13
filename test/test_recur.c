@@ -19,31 +19,9 @@ void *auto_rec(const void *) {
     printf("co %s finished\n", name);
     return NULL;
 }
-void *hand_rec(const void *depth) {
-    int d = *(int *)depth;
-    if (d >= 3) return NULL;
-    char name[2];
-    name[0] = '0';
-    name[1] = '\0';
-    name[0] += d;
-    printf("co depth %s begin\n", name);
-    coroutine_t co1, co2;
-    d++;
-    co1 = coroutine_create(hand_rec, &d, 0);
-    co2 = coroutine_create(hand_rec, &d, 0);
-    coroutine_resume(co1);
-    coroutine_resume(co2);
-    coroutine_free(co1);
-    coroutine_free(co2);
-    printf("co depth %s finished\n", name);
-    return NULL;
-}
 int main() {
     printf("***************test auto rec**************\n");
     auto_rec(NULL);
-    printf("\n***************test hand rec********************\n");
-    int depth = 0;
-    hand_rec(&depth);
 }
 /*正确输出：
 ***************test auto rec**************

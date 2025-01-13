@@ -46,4 +46,13 @@ void add_coroutine(Coroutine* co);
 
 void event_loop();
 
+EventList* make_empty_list();
+EventNode* make_node(Coroutine* co);
+void free_node(EventNode* node);
+EventNode* push_back(EventList* list, Coroutine* co);
+Coroutine* pop_front(EventList* list);
+void remove_next(EventList* list, EventNode* node);
+bool is_emptylist(EventList* list);
+void show_list(EventList* list);
+
 #endif

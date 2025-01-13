@@ -20,6 +20,14 @@ typedef struct {
     int size;
     int capacity;
 } Heap;
+typedef struct HandleTable {
+    void **table;
+    //未被使用的句柄
+    int *unused;
+    // size表示unused的大小
+    int size, capacity;
+} HandleTable;
+
 Heap *heap_create(int capacity);
 void heap_free(Heap *heap);
 void heap_push(Heap *heap, long long weight, void *data);
@@ -36,4 +44,8 @@ long long get_now();
 //其它
 unsigned long long min(unsigned long long x, unsigned long long y);
 
+void ut_init_handle_table(HandleTable* table);
+int ut_alloc_id(HandleTable* table) ;
+void *ut_get_item_by_id(HandleTable* table,int id) ;
+void ut_free_id(HandleTable*table,int id);
 #endif

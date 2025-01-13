@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "log.h"
+#define TABLESIZE 1024
 //通过环境变量设置日志输出级别
 void log_set_level_from_env() {
     const char *log_level = getenv("LOG_LEVEL");
@@ -115,4 +116,40 @@ long long get_now() {
 //其它
 unsigned long long min(unsigned long long x, unsigned long long y) {
     return x < y ? x : y;
+}
+
+
+//初始化hanlde与item之间的映射表，可动态扩容
+void ut_init_handle_table(HandleTable* table) {
+    table->capacity = TABLESIZE;
+    table->size = TABLESIZE;
+    table->table = (void **)calloc(TABLESIZE, sizeof(void *));
+    table->unused = (int *)malloc(TABLESIZE * sizeof(int));
+    for (int i = 0; i < TABLESIZE; i++) table->unused[i] = i;
+}
+
+//分配Handle
+int ut_alloc_id(HandleTable* table) {
+    if (table->size == 0) {
+        int n = table->capacity;
+        table->capacity = n * 2;
+        table->size = n;
+        table->table = realloc(table->table, n * 2 * sizeof(void *));
+        //虽然现在unused只需要n的空间，但是后续可能会有新的句柄从co_table中释放，最大可以到2*n
+        table->unused = realloc(table->unused, n * 2 * sizeof(int));
+        for (int i = n; i < n * 2; i++) table->unused[i - n] = i;
+    }
+    table->size--;
+    return table->unused[table->size];
+}
+
+//根据handle获取item
+void *ut_get_item_by_id(HandleTable* table,int id) {
+    return table->table[id];
+}
+
+//释放Handle
+void ut_free_id(HandleTable*table,int id) {
+    table->table[id] = NULL;
+    table->unused[table->size++] = id;
 }

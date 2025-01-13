@@ -1,7 +1,7 @@
 #include "coheader.h"
 
 #define NUM_coroutines 10000
-#define N 20  
+#define N 20
 
 unsigned long long fibonacci(int n) {
     if (n <= 1) return n;

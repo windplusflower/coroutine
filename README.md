@@ -87,7 +87,7 @@ C
     - test_return测试嵌套创建和协程返回值
     - test_rdwr,test_read,test_sleep,test_tcp,test_timeout,test_udp测试各调用阻塞时能否正常挂起协程
 - coroutine_开头的表示性能测例的协程版本，thread_开头的表示性能测例的线程版本
-    - (coroutine/thread)_fib，1w线程并发线性计算斐波那契数列，属于计算密集型，主要测试协程/线程切换的开销。
+    - (coroutine/thread)_fib，1w线程并发线性计算斐波那契数列，属于计算密集型，主要测试协程/线程创建/切换的开销。
 
 ## 进度
 - **24.11.23**: 实现简易的单对父子协程切换功能。
