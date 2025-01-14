@@ -35,9 +35,6 @@ stack_size是栈大小，可以用0表示由框架指定;
 */
 coroutine_t coroutine_create(void (*func)(const void *), void *arg, size_t stack_size);
 
-//判断协程是否处于已结束未回收的状态
-bool coroutine_is_finished(coroutine_t handle);
-
 //等待协程运行结束，获取返回值，并释放协程内存
 void* coroutine_join(coroutine_t handle);
 
@@ -74,8 +71,6 @@ bool is_hook_enabled();
 ## 使用
 - src目录下会被编译为共享库libsrc.so，头文件包含coheader.h，链接此共享库即可使用。
 - 具体用法可以看test目录下的例程。
-
-```
 
 ## 测例介绍
 - test_开头的和example均为功能测例

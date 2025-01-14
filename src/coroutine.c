@@ -249,12 +249,3 @@ void coroutine_detach(int handle) {
     }
     co->is_detached = 1;
 }
-
-bool coroutine_is_finished(int handle) {
-    Coroutine *co = get_coroutine_by_id(handle);
-    if (co == NULL) {
-        log_error("Coroutine %d not exist!", handle);
-        return false;
-    }
-    return co->status == COROUTINE_DEAD;
-}

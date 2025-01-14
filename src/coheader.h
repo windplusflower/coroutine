@@ -10,7 +10,6 @@ typedef int co_cond_t;
 coroutine_t coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size);
 void *coroutine_join(coroutine_t handle);
 void coroutine_detach(coroutine_t handle);
-bool coroutine_is_finished(coroutine_t handle);
 /***********************************************/
 //协程同步
 
