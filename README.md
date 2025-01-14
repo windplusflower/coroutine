@@ -74,11 +74,10 @@ bool is_hook_enabled();
 
 ## 测例介绍
 - test_开头的和example均为功能测例
-    - example是上面的示例
-    - test_base测试基本功能
     - test_recur测试嵌套创建
     - test_return测试嵌套创建和协程返回值
     - test_rdwr,test_read,test_sleep,test_tcp,test_timeout,test_udp测试各调用阻塞时能否正常挂起协程
+    - test_cond测试条件变量
 - coroutine_开头的表示性能测例的协程版本，thread_开头的表示性能测例的线程版本
     - (coroutine/thread)_fib，1w线程并发线性计算斐波那契数列，属于计算密集型，主要测试协程/线程创建/切换的开销。
 
