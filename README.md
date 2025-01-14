@@ -11,6 +11,8 @@
 7. 使用小根堆来实现超时机制。
 8. 协程创建后即投入运行，不需要手动启动，不需要手动开启事件循环，支持获取返回值，使协程的使用方式更接近linux线程。
 9. 除了通用寄存器外，切换协程时还会保存浮点寄存器和标志寄存器
+10. 屏蔽yield和resume等操作，通过协程版本的锁/条件变量来实现挂起，使协程的使用更方便，更接近线程。
+11. (TODO)为协程版本的锁/条件变量支持多线程
 
 ## 运行
 使用`make testname`即可运行相应的test
@@ -33,11 +35,7 @@ stack_size是栈大小，可以用0表示由框架指定;
 */
 coroutine_t coroutine_create(void (*func)(const void *), void *arg, size_t stack_size);
 
-//挂起当前协程
-void coroutine_yield();
-
 //判断协程是否处于已结束未回收的状态
-//自动调度已经结束但还未调用join，或者手动调度已经结束但还未调用free
 bool coroutine_is_finished(coroutine_t handle);
 
 //等待协程运行结束，获取返回值，并释放协程内存
@@ -45,6 +43,21 @@ void* coroutine_join(coroutine_t handle);
 
 //分离协程
 void coroutine_detach(coroutine_t handle);
+
+//创建条件变量
+co_cond_t co_cond_alloc();
+
+//唤醒一个等待条件变量的协程
+void co_cond_signal(co_cond_t handle);
+
+//唤醒所有等待条件变量的协程
+void co_cond_broadcast(co_cond_t handle);
+
+//等待条件变量，超时时间单位是毫秒
+bool co_cond_wait(co_cond_t handle, int timeout);
+
+//释放条件变量
+void co_cond_free(co_cond_t handle);
 
 //开启hook机制
 void enable_hook();
@@ -58,25 +71,10 @@ bool is_hook_enabled();
 // 支持hook的函数：read,write,send,recv,sendto,recvfrom,accept,connect,setsockopt,sleep,usleep
 ```
 
-## 示例
-- 使用：src目录下会被编译为共享库libsrc.so，头文件包含coheader.h，链接此共享库即可使用
-```C
-#include "coheader.h"
-void func(const void* arg){
-    printf("A\n");
-    coroutine_yield();
-    printf("B\n");
-}
-int main(){
-    coroutine_t co=coroutine_create(func,NULL,0);
-    coroutine_join(co);
-    printf("C\n");
-}
-/*输出：
-A
-B
-C
-*/
+## 使用
+- src目录下会被编译为共享库libsrc.so，头文件包含coheader.h，链接此共享库即可使用。
+- 具体用法可以看test目录下的例程。
+
 ```
 
 ## 测例介绍
@@ -111,6 +109,8 @@ C
 - **24.12.22**: 添加detach方法。
 - **24.12.31**: 移除手动调度相关函数和字段，移除调用栈，移除对手动调度的支持。
 - **25.01.11**: 添加衡量程序运行时间和峰值内存的脚本；添加比较两个程序运行时间和内存的脚本；添加一堆测试运行速度的测例。
+- **25.01.13**: 将分配句柄抽象出来，以便之后条件变量复用。
+- **25.01.14**: 实现协程版的条件变量（暂未支持多线程）。
 
 ## Debug 记录
 ### 2024.11.25~2024.11.26
@@ -138,9 +138,10 @@ C
 - 添加hook机制，发现RTLD_NEXT宏无法找到导致编译失败，但是正确包含了dlfcn.h，其中也能看到RTLD_NEXT的定义。观察代码后发现它需要在定义了__USE_GNU宏时才会启用，而本项目并没有__USE_GNU宏。查阅资料后发现，__USE_GNU宏并没有开放给用户使用，如果需要定义，则需要定义_GNU_SOURCE宏来间接开启__USE_GNU。添加_GNU_SOUCR宏后问题解决。
 ### 2024.12.21
 - 添加对标志寄存器的保存。原本想用pushfq保存到栈上，切换上下文后再从栈上读取，但是会发生段错误。经gdb对汇编指令进行调试并查看内存，发现寄存器/内存的值均正确无误。查阅资料后得知，x86_64机器中sp要求是16字节对齐的，而我保存8个字节的标志寄存器到栈上，再经过切换上下文，导致触发了sp未对齐的问题。同时也得知，对于浮点寄存器的保存操作fxsave，也有目的地址需要16字节对齐的要求。但是调试过程中发现，程序运行过程中sp并不总是16字节对齐的，如果将这些数据保存到栈上，栈的对齐问题不方便处理，于是决定将这些寄存器也都在堆中保存，问题解决。
-
 ### 2025.1.11
-- 添加了测试运行速度的测例和比较运行时间的脚本，最开始想试试10w线程和10w协程相比的效率问题，结果测例直接把服务器跑崩了。排查后发现不是协程崩了，而是线程崩了，估计是机器的内存不够支持10w线程运行吧，Hahahaha.
+- 添加了测试运行速度的测例和比较运行时间的脚本，最开始想试试10w线程和10w协程相比的效率问题，结果测例直接把服务器跑崩了。排查后发现不是协程崩了，而是线程崩了，估计是机器的内存不够支持10w线程运行吧，Hahahaha。
+### 2025.1.14
+- 实现了协程版本的条件变量。写了一个test_cond进行测试时，发现生产者协程只运行一次后就再也没被调度过了，调度器只运行消费者协程。调试后发现，是因为我在co_cond_wait中使用wait_event来实现超时，但是它并无法感知协程是否已经被条件变量唤醒。同时，原本的yield有一个In_epoll参数，用来判断协程是否在等待事件。这两个导致了调度器总是唤醒消费者协程。考虑到yield接口之后是会向用户屏蔽的，只会在库内部调用，我可以保证调用yield一定是阻塞等待唤醒，因此协程不需要In_epoll这个字段了，yield也不需要执行add_coroutine操作。同时，之前为了防止忙等待而改成每次切换协程就调用一次awake也可以改成只在可执行队列为空时调用awake。同时还写了一个wait_cond来代替wait_event，专用于条件变量的超市等待，问题修复。
 
 ## TODO
 
@@ -148,7 +149,7 @@ C
 - coroutine_join()里面只判断了一次协程co的状态，然后yield()，之后被唤醒后能否保证co结束了  √
 - 目前差不多已经完成了任务书的要求，只需要完善和编写更多的测试用例，和不用协程的数据对比。
 - 有时间有兴趣的可以考虑实现：协程和多线程共存，把协程分组，同组的在一个线程中调度，不同组在多线程并发。
-- coroutine_resume()可以只唤醒协程，不切换过去。应该只有 yield() 自己主动让出cpu才切换协程
 - 协程可以不考虑 cancel  √
 - 实现多线程协程中可以使用的互斥锁，上锁等待时调用 yield()
 - 实现多线程协程中可以使用的条件变量
+- 不在开放yield接口，做到只有阻塞时才yield，这样就不需要判断yield时是否需要保持协程唤醒，awake也可以改成只在没有活跃协程时调用 √

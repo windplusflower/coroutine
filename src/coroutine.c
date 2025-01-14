@@ -13,6 +13,7 @@
 #include "log.h"
 #include "hook.h"
 #include "utils.h"
+#include "cond.h"
 
 //初始化hanlde与coroutine之间的映射表，可动态扩容
 void init_coroutine_table() {
@@ -31,7 +32,7 @@ Coroutine *get_coroutine_by_id(int id) {
 
 //释放Handle
 void free_coroutine_id(int id) {
-    ut_free_id(&ENV.table,id);
+    ut_free_id(&ENV.table, id);
 }
 
 //获取当前协程
@@ -55,7 +56,6 @@ Coroutine *main_coroutine_init() {
 #ifdef USE_DEBUG
     main_coroutine->name = "main";
 #endif
-    main_coroutine->in_epoll = false;
     main_coroutine->handle = alloc_coroutine_id();
     ENV.table.table[main_coroutine->handle] = main_coroutine;
     ENV.current_coroutine = main_coroutine;
@@ -69,6 +69,7 @@ void eventloop_init() {
     has_inited = true;
     log_set_level_from_env();
     init_coroutine_table();
+    init_cond_table();
     init_eventmanager();
 
     ENV.eventloop_coroutine = (Coroutine *)malloc(sizeof(Coroutine));
@@ -97,7 +98,6 @@ void coroutine_finish() {
     Coroutine *upcoming_coroutine = get_eventloop_coroutine();
     current_coroutine->status = COROUTINE_DEAD;
     if (current_coroutine->waited_co != NULL) {
-        current_coroutine->waited_co->in_epoll = false;
         add_coroutine(current_coroutine->waited_co);
     }
 #ifdef USE_DEBUG
@@ -124,7 +124,6 @@ int coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_
     co->stack_size = stack_size;
     co->stack = malloc(stack_size);
     co->is_detached = false;
-    co->in_epoll = false;
     co->timeout = false;
     co->waited_co = NULL;
 
@@ -180,7 +179,9 @@ void coroutine_yield() {
     Coroutine *upcoming_coroutine = get_eventloop_coroutine();
     assert(current_coroutine->status == COROUTINE_RUNNING);
     current_coroutine->status = COROUTINE_SUSPENDED;
-    if (!current_coroutine->in_epoll) add_coroutine(current_coroutine);
+    // yield不再加入可执行队列
+    //目前还没改完，有的测例可能临时过不去
+    // if (!current_coroutine->in_epoll) add_coroutine(current_coroutine);
 
 #ifdef USE_DEBUG
     log_debug("%s yield to %s", current_coroutine->name, upcoming_coroutine->name);
@@ -228,7 +229,6 @@ void *coroutine_join(int handle) {
             return NULL;
         }
         co->waited_co = get_current_coroutine();
-        co->waited_co->in_epoll = true;
         coroutine_yield();
     }
     assert(co->status == COROUTINE_DEAD);

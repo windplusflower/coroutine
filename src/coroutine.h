@@ -30,7 +30,6 @@ typedef struct Coroutine {
     const char *name;  //用于调试
 #endif
     bool is_detached;  //是否分离
-    bool in_epoll;     //是否在等待事件
     bool timeout;      //是否因timeout而被唤醒
     int fd;            //当前协程因哪个fd而挂起
     struct epoll_event *event;  //当前协程为了监听哪个事件而挂起；当前协程因为收到哪个事件而被唤醒

@@ -36,19 +36,4 @@ co d finished
 co e begin
 co e finished
 
-***************test hand rec********************
-co depth 0 begin
-co depth 1 begin
-co depth 2 begin
-co depth 2 finished
-co depth 2 begin
-co depth 2 finished
-co depth 1 finished
-co depth 1 begin
-co depth 2 begin
-co depth 2 finished
-co depth 2 begin
-co depth 2 finished
-co depth 1 finished
-co depth 0 finished
 */

@@ -5,12 +5,22 @@
 #include <sys/socket.h>
 
 typedef int coroutine_t;
+typedef int co_cond_t;
 
 coroutine_t coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size);
-void coroutine_yield();
 void *coroutine_join(coroutine_t handle);
 void coroutine_detach(coroutine_t handle);
 bool coroutine_is_finished(coroutine_t handle);
+/***********************************************/
+//协程同步
+
+co_cond_t co_cond_alloc();
+void co_cond_signal(co_cond_t handle);
+void co_cond_broadcast(co_cond_t handle);
+//超时时间单位是毫秒
+bool co_cond_wait(co_cond_t handle, int timeout);
+void co_cond_free(co_cond_t handle);
+
 /*********************************************/
 
 // hook的函数：read,write,send,recv,sendto,recvfrom,accept,aonnect,setsockopt,sleep,usleep

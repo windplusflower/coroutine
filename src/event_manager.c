@@ -57,6 +57,12 @@ void free_node(EventNode* node) {
     if (node->free_times == 0) free(node);
 }
 
+void free_list(EventList* list) {
+    while (!is_emptylist(list)) pop_front(list);
+    free(list->head);
+    free(list);
+}
+
 //添加到链表尾部
 EventNode* push_back(EventList* list, Coroutine* co) {
     EventNode* node = make_node(co);
@@ -125,7 +131,6 @@ void add_coroutine(Coroutine* co) {
 //加入epoll,合并不同协程对相同fd的等待
 EventNode* push_in_epoll(Coroutine* co) {
     if (co->fd < 0) return NULL;
-    co->in_epoll = true;
     int fd = co->fd;
     //初次访问，分配内存
     if (EVENT_MANAGER.waiting_co[fd] == NULL) {
@@ -154,9 +159,8 @@ EventNode* push_in_epoll(Coroutine* co) {
 //返回是否成功等到事件
 bool wait_event(epoll_event* event, int timeout) {
     Coroutine* co = get_current_coroutine();
-    if (event == NULL && timeout != -1) {
+    if (event == NULL) {
         EventNode* node = make_node(co);
-        co->in_epoll = true;
         heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
     } else {
         int fd = event->data.fd;
@@ -181,6 +185,21 @@ bool wait_event(epoll_event* event, int timeout) {
     return res;
 }
 
+//参数分别为：等待的条件变量；等待的时间(ms)
+//返回是否成功等到条件变量
+bool wait_cond(EventNode* node, int timeout) {
+    Coroutine* co = get_current_coroutine();
+    node->free_times = 2;
+    heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
+#ifdef USE_DEBUG
+    log_debug("%s wait event(%dms) and yield", co->name, timeout);
+#endif
+    coroutine_yield();
+    bool res = co->timeout ^ 1;
+    co->timeout = 0;
+    return res;
+}
+
 //唤醒收到响应的协程和超时的协程，加入执行队列
 //这里不能等执行队列为空时才调用，因为可能有的协程是在忙等待,此时执行队列永远不会空
 void awake() {
@@ -199,7 +218,6 @@ void awake() {
             } else if ((p->next->co->event->events & flag) != 0) {
                 p->next->co->event->events = flag;
                 push_back(EVENT_MANAGER.active_list, p->next->co);
-                p->next->co->in_epoll = false;
                 remove_next(EVENT_MANAGER.waiting_co[fd], p);
                 //同一个fd一次只弹出一个协程，因为同时弹出多个的话，可能一个协程的操作使另一个陷入阻塞。
                 //弹出时是弹出最早的，如果该协程再次加入则会进入队尾，实现轮转，不会导致其它协程饥饿。
@@ -233,7 +251,6 @@ void awake() {
         log_debug("%s time out", node->co->name);
 #endif
         node->co->timeout = 1;
-        node->co->in_epoll = false;
         add_coroutine(node->co);
         free_node(node);
     }
@@ -242,10 +259,12 @@ void awake() {
 //事件循环
 void event_loop() {
     while (1) {
-        awake();
+        if (is_emptylist(EVENT_MANAGER.active_list)) {
+            awake();
+            continue;
+        }
         show_epoll();
         show_list(EVENT_MANAGER.active_list);
-        if (is_emptylist(EVENT_MANAGER.active_list)) continue;
         Coroutine* co = pop_front(EVENT_MANAGER.active_list);
         if (co->status == COROUTINE_DEAD) {
             //分离的需要释放

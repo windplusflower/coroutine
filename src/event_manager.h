@@ -42,6 +42,7 @@ void init_eventmanager();
 EventManager* get_eventmanager();
 
 bool wait_event(epoll_event* event, int timeout);
+bool wait_cond(EventNode* node, int timeout);
 void add_coroutine(Coroutine* co);
 
 void event_loop();
@@ -53,6 +54,7 @@ EventNode* push_back(EventList* list, Coroutine* co);
 Coroutine* pop_front(EventList* list);
 void remove_next(EventList* list, EventNode* node);
 bool is_emptylist(EventList* list);
+void free_list(EventList* list);
 void show_list(EventList* list);
 
 #endif
