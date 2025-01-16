@@ -157,7 +157,7 @@ EventNode* push_in_epoll(Coroutine* co) {
 //参数分别为：等待的事件；等待的时间(ms)
 //这个函数只由库内的函数调用，保证event会传fd
 //返回是否成功等到事件
-bool wait_event(epoll_event* event, int timeout) {
+bool wait_event(epoll_event* event, unsigned long long timeout) {
     Coroutine* co = get_current_coroutine();
     if (event == NULL) {
         EventNode* node = make_node(co);
@@ -176,7 +176,7 @@ bool wait_event(epoll_event* event, int timeout) {
     }
 
 #ifdef USE_DEBUG
-    log_debug("%s wait event(%dms) and yield", co->name, timeout);
+    log_debug("%s wait event(%lums) and yield", co->name, timeout);
 #endif
     // add_event是由重写的系统函数调用的，因此需要yield，当描述符可用时由调度器唤醒。
     coroutine_yield();
@@ -187,7 +187,7 @@ bool wait_event(epoll_event* event, int timeout) {
 
 //参数分别为：等待的条件变量；等待的时间(ms)
 //返回是否成功等到条件变量
-bool wait_cond(EventNode* node, int timeout) {
+bool wait_cond(EventNode* node, unsigned long long timeout) {
     Coroutine* co = get_current_coroutine();
     node->free_times = 2;
     heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);

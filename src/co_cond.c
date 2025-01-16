@@ -1,4 +1,4 @@
-#include "cond.h"
+#include "co_cond.h"
 #include "coroutine.h"
 #include "event_manager.h"
 #include "log.h"
@@ -38,6 +38,10 @@ int co_cond_alloc() {
 //通知一个
 void co_cond_signal(int handle) {
     Cond* cond = get_cond_by_id(handle);
+    if (cond == NULL) {
+        log_error("cond %d not exist!", handle);
+        return;
+    }
     //移除已经因超时而无效的协程
     while (!is_emptylist(cond->list) && !cond->list->head->next->valid)
         remove_next(cond->list, cond->list->head);
@@ -52,6 +56,10 @@ void co_cond_signal(int handle) {
 
 void co_cond_broadcast(int handle) {
     Cond* cond = get_cond_by_id(handle);
+    if (cond == NULL) {
+        log_error("cond %d not exist!", handle);
+        return;
+    }
     while (!is_emptylist(cond->list)) {
         if (!cond->list->head->next->valid)
             remove_next(cond->list, cond->list->head);
@@ -66,14 +74,24 @@ void co_cond_broadcast(int handle) {
 //时间毫秒,返回是否成功等到
 bool co_cond_wait(int handle, int timeout) {
     Cond* cond = get_cond_by_id(handle);
+    if (cond == NULL) {
+        log_error("cond %d not exist!", handle);
+        return -1;
+    }
     push_back(cond->list, get_current_coroutine());
     return wait_cond(cond->list->tail, timeout);
 }
 
-void co_cond_free(int handle) {
+//正在使用的话会返回-1;
+int co_cond_free(int handle) {
     Cond* cond = get_cond_by_id(handle);
+    if (cond == NULL) {
+        log_error("cond %d not exist!", handle);
+        return -1;
+    };
+    if (!is_emptylist(cond->list)) return -1;
     free_list(cond->list);
     free(cond);
     free_cond_id(handle);
-    return;
+    return 0;
 }

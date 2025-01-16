@@ -23,7 +23,8 @@ void log_set_level_from_env() {
         } else if (strcmp(log_level, "LOG_FATAL") == 0) {
             log_set_level(LOG_FATAL);
         }
-    }else log_set_level(LOG_INFO);
+    } else
+        log_set_level(LOG_INFO);
 }
 
 //小根堆
@@ -118,9 +119,8 @@ unsigned long long min(unsigned long long x, unsigned long long y) {
     return x < y ? x : y;
 }
 
-
 //初始化hanlde与item之间的映射表，可动态扩容
-void ut_init_handle_table(HandleTable* table) {
+void ut_init_handle_table(HandleTable *table) {
     table->capacity = TABLESIZE;
     table->size = TABLESIZE;
     table->table = (void **)calloc(TABLESIZE, sizeof(void *));
@@ -129,7 +129,7 @@ void ut_init_handle_table(HandleTable* table) {
 }
 
 //分配Handle
-int ut_alloc_id(HandleTable* table) {
+int ut_alloc_id(HandleTable *table) {
     if (table->size == 0) {
         int n = table->capacity;
         table->capacity = n * 2;
@@ -144,12 +144,14 @@ int ut_alloc_id(HandleTable* table) {
 }
 
 //根据handle获取item
-void *ut_get_item_by_id(HandleTable* table,int id) {
+void *ut_get_item_by_id(HandleTable *table, int id) {
+    if (id >= table->capacity) return NULL;
     return table->table[id];
 }
 
 //释放Handle
-void ut_free_id(HandleTable*table,int id) {
+void ut_free_id(HandleTable *table, int id) {
+    assert(table->table[id] != NULL);
     table->table[id] = NULL;
     table->unused[table->size++] = id;
 }

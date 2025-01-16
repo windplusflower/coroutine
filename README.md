@@ -25,6 +25,7 @@ make test_rdwr LOG_LEVEL=LOG_DEBUG
 ```
 
 ## 接口
+- 协程接口
 ```C
 /*
 创建协程，返回句柄;
@@ -40,7 +41,9 @@ void* coroutine_join(coroutine_t handle);
 
 //分离协程
 void coroutine_detach(coroutine_t handle);
-
+```
+- 条件变量
+```C
 //创建条件变量
 co_cond_t co_cond_alloc();
 
@@ -55,7 +58,20 @@ bool co_cond_wait(co_cond_t handle, int timeout);
 
 //释放条件变量
 void co_cond_free(co_cond_t handle);
+```
+- 互斥锁
+```C
+//创建互斥锁
+co_mutex_t co_mutex_alloc();
 
+//加锁
+void co_mutex_lock();
+
+//解锁
+void co_mutex_unlock();
+```
+- hook机制
+```C
 //开启hook机制
 void enable_hook();
 
@@ -78,6 +94,7 @@ bool is_hook_enabled();
     - test_return测试嵌套创建和协程返回值
     - test_rdwr,test_read,test_sleep,test_tcp,test_timeout,test_udp测试各调用阻塞时能否正常挂起协程
     - test_cond测试条件变量
+    - test_mutex测试互斥锁
 - coroutine_开头的表示性能测例的协程版本，thread_开头的表示性能测例的线程版本
     - (coroutine/thread)_fib，1w线程并发线性计算斐波那契数列，属于计算密集型，主要测试协程/线程创建/切换的开销。
 
@@ -105,6 +122,7 @@ bool is_hook_enabled();
 - **25.01.11**: 添加衡量程序运行时间和峰值内存的脚本；添加比较两个程序运行时间和内存的脚本；添加一堆测试运行速度的测例。
 - **25.01.13**: 将分配句柄抽象出来，以便之后条件变量复用。
 - **25.01.14**: 实现协程版的条件变量（暂未支持多线程）。
+- **25.01.16**：实现协程版的互斥锁（暂未支持多线程）。
 
 ## Debug 记录
 ### 2024.11.25~2024.11.26

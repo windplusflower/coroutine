@@ -6,6 +6,7 @@
 
 typedef int coroutine_t;
 typedef int co_cond_t;
+typedef int co_mutex_t;
 
 coroutine_t coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size);
 void *coroutine_join(coroutine_t handle);
@@ -16,9 +17,12 @@ void coroutine_detach(coroutine_t handle);
 co_cond_t co_cond_alloc();
 void co_cond_signal(co_cond_t handle);
 void co_cond_broadcast(co_cond_t handle);
-//超时时间单位是毫秒
-bool co_cond_wait(co_cond_t handle, int timeout);
+bool co_cond_wait(co_cond_t handle, int timeout);  //超时时间单位是毫秒
 void co_cond_free(co_cond_t handle);
+
+co_mutex_t co_mutex_alloc();
+void co_mutex_lock(co_mutex_t handle);
+void co_mutex_unlock(co_mutex_t handle);
 
 /*********************************************/
 

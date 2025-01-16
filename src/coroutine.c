@@ -13,7 +13,8 @@
 #include "log.h"
 #include "hook.h"
 #include "utils.h"
-#include "cond.h"
+#include "co_cond.h"
+#include "co_mutex.h"
 
 //初始化hanlde与coroutine之间的映射表，可动态扩容
 void init_coroutine_table() {
@@ -70,6 +71,7 @@ void eventloop_init() {
     log_set_level_from_env();
     init_coroutine_table();
     init_cond_table();
+    init_mutex_table();
     init_eventmanager();
 
     ENV.eventloop_coroutine = (Coroutine *)malloc(sizeof(Coroutine));

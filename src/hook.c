@@ -27,8 +27,8 @@ typedef int (*setsockopt_t)(int socket, int level, int option_name, const void *
                             socklen_t option_len);
 typedef int (*poll_t)(struct pollfd fds[], nfds_t nfds, int timeout);
 
-typedef void (*sleep_t)(unsigned int seconds);
-typedef void (*usleep_t)(useconds_t useconds);
+typedef unsigned int (*sleep_t)(unsigned int seconds);
+typedef int (*usleep_t)(useconds_t useconds);
 /**********************************************************************************/
 static read_t sys_read;
 static write_t sys_write;
@@ -358,15 +358,15 @@ int setsockopt(int fd, int level, int option_name, const void *option_value, soc
 unsigned int sleep(unsigned int seconds) {
     init_hook();
     if (is_hook_enabled())
-        co_sleep(seconds);
+        return co_sleep(seconds);
     else
-        sys_sleep(seconds);
+        return sys_sleep(seconds);
 }
 
 int usleep(useconds_t useconds) {
     init_hook();
     if (is_hook_enabled())
-        co_usleep(useconds);
+        return co_usleep(useconds);
     else
-        sys_usleep(useconds);
+        return sys_usleep(useconds);
 }

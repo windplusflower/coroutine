@@ -41,8 +41,8 @@ __thread static EventManager EVENT_MANAGER;
 void init_eventmanager();
 EventManager* get_eventmanager();
 
-bool wait_event(epoll_event* event, int timeout);
-bool wait_cond(EventNode* node, int timeout);
+bool wait_event(epoll_event* event, unsigned long long timeout);
+bool wait_cond(EventNode* node, unsigned long long timeout);
 void add_coroutine(Coroutine* co);
 
 void event_loop();
