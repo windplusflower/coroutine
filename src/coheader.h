@@ -17,12 +17,15 @@ void coroutine_detach(coroutine_t handle);
 co_cond_t co_cond_alloc();
 void co_cond_signal(co_cond_t handle);
 void co_cond_broadcast(co_cond_t handle);
-bool co_cond_wait(co_cond_t handle, int timeout);  //超时时间单位是毫秒
-void co_cond_free(co_cond_t handle);
+int co_cond_wait(co_cond_t cond_handle, co_mutex_t mutex_handle);
+int co_cond_timewait(co_cond_t cond_handle, co_mutex_t mutex_handle,
+                     int timeout);  //超时时间单位是毫秒
+int co_cond_free(co_cond_t handle);
 
 co_mutex_t co_mutex_alloc();
 void co_mutex_lock(co_mutex_t handle);
 void co_mutex_unlock(co_mutex_t handle);
+int co_mutex_trylock(co_mutex_t handle);
 
 /*********************************************/
 

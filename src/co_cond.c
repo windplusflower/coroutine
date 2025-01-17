@@ -3,6 +3,7 @@
 #include "event_manager.h"
 #include "log.h"
 #include "utils.h"
+#include "coheader.h"
 //初始化hanlde与cond之间的映射表，可动态扩容
 void init_cond_table() {
     ut_init_handle_table(&COND_TABLE);
@@ -71,15 +72,31 @@ void co_cond_broadcast(int handle) {
     }
 }
 
-//时间毫秒,返回是否成功等到
-bool co_cond_wait(int handle, int timeout) {
-    Cond* cond = get_cond_by_id(handle);
+int co_cond_wait(int cond_handle, int mutex_handle) {
+    Cond* cond = get_cond_by_id(cond_handle);
     if (cond == NULL) {
-        log_error("cond %d not exist!", handle);
+        log_error("cond %d not exist!", cond_handle);
         return -1;
     }
+    co_mutex_unlock(mutex_handle);
     push_back(cond->list, get_current_coroutine());
-    return wait_cond(cond->list->tail, timeout);
+    coroutine_yield();
+    co_mutex_lock(mutex_handle);
+    return 0;
+}
+
+//超时时间单位是ms
+int co_cond_timewait(int cond_handle, int mutex_handle, int timeout) {
+    Cond* cond = get_cond_by_id(cond_handle);
+    if (cond == NULL) {
+        log_error("cond %d not exist!", cond_handle);
+        return -1;
+    }
+    co_mutex_unlock(mutex_handle);
+    push_back(cond->list, get_current_coroutine());
+    int ret = wait_cond(cond->list->tail, timeout) - 1;
+    co_mutex_lock(mutex_handle);
+    return ret;
 }
 
 //正在使用的话会返回-1;

@@ -76,3 +76,14 @@ int co_mutex_free(int handle) {
     free_mutex_id(handle);
     return 0;
 }
+
+int co_mutex_trylock(int handle) {
+    Mutex* mutex = get_mutex_by_id(handle);
+    if (mutex == NULL) {
+        log_error("mutex %d not exist!", handle);
+        return -1;
+    }
+    if (mutex->is_locked) return -1;
+    mutex->is_locked = true;
+    return 0;
+}
