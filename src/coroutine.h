@@ -33,7 +33,7 @@ typedef struct Coroutine {
     bool timeout;      //是否因timeout而被唤醒
     int fd;            //当前协程因哪个fd而挂起
     struct epoll_event *event;  //当前协程为了监听哪个事件而挂起；当前协程因为收到哪个事件而被唤醒
-    int handle;                   //协程对应的句柄
+    //    int handle;                   //协程对应的句柄
     void *return_val;             //协程返回值
     struct Coroutine *waited_co;  //等待自己结束的协程，用于join的通知
 } Coroutine;
@@ -58,12 +58,11 @@ __thread static CoroutineEnv ENV;
 void init_coroutine_table();
 void eventloop_init();
 
-int coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size);
-void coroutine_resume(int handle);
+void *coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size);
+void coroutine_resume(void *handle);
 void coroutine_yield();
-void *coroutine_join(int handle);
-void coroutine_finish();
-void coroutine_free(int handle);
+void *coroutine_join(void *handle);
+void coroutine_free(void *handle);
 
 Coroutine *get_current_coroutine();
 

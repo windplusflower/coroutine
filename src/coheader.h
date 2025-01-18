@@ -4,9 +4,9 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
-typedef int coroutine_t;
-typedef int co_cond_t;
-typedef int co_mutex_t;
+typedef void *coroutine_t;
+typedef void *co_cond_t;
+typedef void *co_mutex_t;
 
 coroutine_t coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size);
 void *coroutine_join(coroutine_t handle);

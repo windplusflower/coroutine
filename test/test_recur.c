@@ -26,14 +26,14 @@ int main() {
 /*正确输出：
 ***************test auto rec**************
 co a begin
-co a finished
 co b begin
-co b finished
 co c begin
-co c finished
 co d begin
-co d finished
 co e begin
+co c finished
+co d finished
 co e finished
+co b finished
+co a finished
 
 */

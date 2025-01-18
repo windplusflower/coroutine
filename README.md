@@ -3,15 +3,15 @@
 
 ## 本协程库特点
 1. 采用有栈协程，每个协程有自己独立的栈。
-2. 协程可嵌套、可递归，不限深度，只要内存够。
+2. 协程可嵌套、可递归，不限深度。
 3. 支持协程版本的函数与系统原版函数混用，即协程并不会对其它函数的行为产生影响。
-4. 类似linux多线程，协程创建后只返回一个int型的句柄，向用户屏蔽内部结构。
-5. 只需要包含一个头文件。
-6. 实现hook机制，开启hook后即可像使用原版函数一样使用各函数。
+4. 类似linux多线程，协程创建后只返回一个句柄，向用户屏蔽内部结构。
+5. 只需要包含一个头文件`coheader.h`。
+6. 实现hook机制，开启hook后即可像使用原版函数一样使用各io相关函数，但阻塞时能自动挂起协程。
 7. 使用小根堆来实现超时机制。
 8. 协程创建后即投入运行，不需要手动启动，不需要手动开启事件循环，支持获取返回值，使协程的使用方式更接近linux线程。
 9. 除了通用寄存器外，切换协程时还会保存浮点寄存器和标志寄存器
-10. 屏蔽yield和resume等操作，通过协程版本的锁/条件变量来实现挂起，使协程的使用更方便，更接近线程。
+10. 屏蔽yield和resume等操作，通过协程版本的锁/条件变量来实现挂起等操作，使协程的使用更方便直观，更接近线程。
 11. (TODO)为协程版本的锁/条件变量支持多线程
 
 ## 运行
@@ -21,7 +21,7 @@
 
 比如：
 ```
-make test_rdwr LOG_LEVEL=LOG_DEBUG
+make test_return LOG_LEVEL=LOG_DEBUG
 ```
 
 ## 接口
@@ -32,14 +32,13 @@ make test_rdwr LOG_LEVEL=LOG_DEBUG
 参数func需要是一个void (*)(const void*)类型的函数;
 arg是一个const void*指针，表示传给func的参数，可以为NULL;
 stack_size是栈大小，可以用0表示由框架指定;
-创建后的协程默认自动调度，当对协程显式使用coroutine_resume()启动后会变为手动调度。
 */
 coroutine_t coroutine_create(void (*func)(const void *), void *arg, size_t stack_size);
 
 //等待协程运行结束，获取返回值，并释放协程内存
 void* coroutine_join(coroutine_t handle);
 
-//分离协程
+//分离协程，运行结束后自动释放内存
 void coroutine_detach(coroutine_t handle);
 ```
 - 条件变量
@@ -53,8 +52,11 @@ void co_cond_signal(co_cond_t handle);
 //唤醒所有等待条件变量的协程
 void co_cond_broadcast(co_cond_t handle);
 
-//等待条件变量，超时时间单位是毫秒
-bool co_cond_wait(co_cond_t handle, int timeout);
+//等待条件变量
+bool co_cond_wait(co_cond_t handle, co_mutex_t mutex);
+
+//等待条件变量，超时时间为ms
+bool co_cond_timewait(co_cond_t handle, co_mutex_t mutex, int timeout);
 
 //释放条件变量
 void co_cond_free(co_cond_t handle);
@@ -66,6 +68,9 @@ co_mutex_t co_mutex_alloc();
 
 //加锁
 void co_mutex_lock();
+
+//尝试加锁，立刻返回，成功返回0，否则返回-1
+int co_mutex_trylock();
 
 //解锁
 void co_mutex_unlock();
@@ -96,7 +101,7 @@ bool is_hook_enabled();
     - test_cond测试条件变量
     - test_mutex测试互斥锁
 - coroutine_开头的表示性能测例的协程版本，thread_开头的表示性能测例的线程版本
-    - (coroutine/thread)_fib，1w线程并发线性计算斐波那契数列，属于计算密集型，主要测试协程/线程创建/切换的开销。
+    - (coroutine/thread)_fib，1w线程并发线性计算斐波那契数列，属于计算密集型，主要测试(协程/线程)的(创建/切换)的开销。
 
 ## 进度
 - **24.11.23**: 实现简易的单对父子协程切换功能。
@@ -122,7 +127,8 @@ bool is_hook_enabled();
 - **25.01.11**: 添加衡量程序运行时间和峰值内存的脚本；添加比较两个程序运行时间和内存的脚本；添加一堆测试运行速度的测例。
 - **25.01.13**: 将分配句柄抽象出来，以便之后条件变量复用。
 - **25.01.14**: 实现协程版的条件变量（暂未支持多线程）。
-- **25.01.16**：实现协程版的互斥锁（暂未支持多线程）。
+- **25.01.16**: 实现协程版的互斥锁（暂未支持多线程）。
+- **25.01.18**: 发现手动分配句柄存在一些弊端，需要额外的空间时间开销，且不利于多线程的配合。如果只是想要向用户屏蔽内部结构，直接把void*指针作为句柄即可。因此重构句柄分配相关代码，使用地址作为句柄。
 
 ## Debug 记录
 ### 2024.11.25~2024.11.26

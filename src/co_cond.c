@@ -4,43 +4,22 @@
 #include "log.h"
 #include "utils.h"
 #include "coheader.h"
-//初始化hanlde与cond之间的映射表，可动态扩容
-void init_cond_table() {
-    ut_init_handle_table(&COND_TABLE);
-}
 
-//分配Handle
-int alloc_cond_id() {
-    return ut_alloc_id(&COND_TABLE);
-}
-
-//根据handle获取Cond
-Cond* get_cond_by_id(int id) {
-    return ut_get_item_by_id(&COND_TABLE, id);
-}
-
-//释放Handle
-void free_cond_id(int id) {
-    ut_free_id(&COND_TABLE, id);
-}
-
-int co_cond_alloc() {
+void* co_cond_alloc() {
     eventloop_init();
     Cond* cond = (Cond*)malloc(sizeof(Cond));
     cond->list = make_empty_list();
-    int handle = alloc_cond_id();
-    COND_TABLE.table[handle] = cond;
 #ifdef USE_DEBUG
-    log_debug("alloc cond %d", handle);
+    log_debug("alloc cond %p", cond);
 #endif
-    return handle;
+    return cond;
 }
 
 //通知一个
-void co_cond_signal(int handle) {
-    Cond* cond = get_cond_by_id(handle);
+void co_cond_signal(void* handle) {
+    Cond* cond = (Cond*)handle;
     if (cond == NULL) {
-        log_error("cond %d not exist!", handle);
+        log_error("cond %p not exist!", handle);
         return;
     }
     //移除已经因超时而无效的协程
@@ -55,8 +34,8 @@ void co_cond_signal(int handle) {
     add_coroutine(co);
 }
 
-void co_cond_broadcast(int handle) {
-    Cond* cond = get_cond_by_id(handle);
+void co_cond_broadcast(void* handle) {
+    Cond* cond = (Cond*)handle;
     if (cond == NULL) {
         log_error("cond %d not exist!", handle);
         return;
@@ -72,8 +51,8 @@ void co_cond_broadcast(int handle) {
     }
 }
 
-int co_cond_wait(int cond_handle, int mutex_handle) {
-    Cond* cond = get_cond_by_id(cond_handle);
+int co_cond_wait(void* cond_handle, void* mutex_handle) {
+    Cond* cond = (Cond*)cond_handle;
     if (cond == NULL) {
         log_error("cond %d not exist!", cond_handle);
         return -1;
@@ -86,8 +65,8 @@ int co_cond_wait(int cond_handle, int mutex_handle) {
 }
 
 //超时时间单位是ms
-int co_cond_timewait(int cond_handle, int mutex_handle, int timeout) {
-    Cond* cond = get_cond_by_id(cond_handle);
+int co_cond_timewait(void* cond_handle, void* mutex_handle, int timeout) {
+    Cond* cond = (Cond*)cond_handle;
     if (cond == NULL) {
         log_error("cond %d not exist!", cond_handle);
         return -1;
@@ -100,8 +79,8 @@ int co_cond_timewait(int cond_handle, int mutex_handle, int timeout) {
 }
 
 //正在使用的话会返回-1;
-int co_cond_free(int handle) {
-    Cond* cond = get_cond_by_id(handle);
+int co_cond_free(void* handle) {
+    Cond* cond = (Cond*)handle;
     if (cond == NULL) {
         log_error("cond %d not exist!", handle);
         return -1;
@@ -109,6 +88,5 @@ int co_cond_free(int handle) {
     if (!is_emptylist(cond->list)) return -1;
     free_list(cond->list);
     free(cond);
-    free_cond_id(handle);
     return 0;
 }
