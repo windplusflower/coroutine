@@ -10,6 +10,7 @@
 #include "coroutine.h"
 #include "log.h"
 #include "utils.h"
+#include "co_mutex.h"
 
 //创建空链表
 EventList* make_empty_list() {
@@ -200,9 +201,8 @@ bool wait_cond(EventNode* node, unsigned long long timeout) {
     return res;
 }
 
-//唤醒收到响应的协程和超时的协程，加入执行队列
-//这里不能等执行队列为空时才调用，因为可能有的协程是在忙等待,此时执行队列永远不会空
-void awake() {
+//唤醒收到响应的协程
+void awake_epoll() {
     //把收到响应的进程加入执行队列
     int nfds = epoll_wait(EVENT_MANAGER.epollfd, EVENT_MANAGER.events, EVENT_MANAGER.event_size, 0);
     epoll_event* events = EVENT_MANAGER.events;
@@ -237,6 +237,10 @@ void awake() {
             //否则不监听
             epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_DEL, fd, NULL);
     }
+}
+
+//唤醒超时的协程
+void awake_timeout() {
     //把超时的进程加入执行队列
     long long now = get_now();
     EventNode* node;
@@ -254,6 +258,17 @@ void awake() {
         add_coroutine(node->co);
         free_node(node);
     }
+}
+
+//唤醒收到锁的协程
+void awake_mutex() {
+}
+
+//唤醒收到响应的协程、超时的协程和获得锁的协程，加入执行队列
+void awake() {
+    awake_epoll();
+    awake_timeout();
+    awake_mutex();
 }
 
 //事件循环
