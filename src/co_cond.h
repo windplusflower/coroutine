@@ -1,7 +1,7 @@
 #include "event_manager.h"
 #include "utils.h"
 typedef struct Cond {
-    EventList* list;
+    CoList* list;
 } Cond;
 __thread static HandleTable COND_TABLE;
 

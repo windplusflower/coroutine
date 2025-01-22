@@ -1,7 +1,7 @@
 #include "event_manager.h"
 #include "utils.h"
 typedef struct Mutex {
-    EventList* list;
+    CoList* list;
     bool is_locked;
 } Mutex;
 __thread static HandleTable MUTEX_TABLE;

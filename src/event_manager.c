@@ -12,14 +12,6 @@
 #include "utils.h"
 #include "co_mutex.h"
 
-//创建空链表
-EventList* make_empty_list() {
-    EventList* res = (EventList*)malloc(sizeof(EventList));
-    res->head = (EventNode*)calloc(1, sizeof(EventNode));
-    res->tail = res->head;
-    return res;
-}
-
 //获取EVENTMANAGER，在其他文件调用
 //因为EVENT_MANAGER有static属性，所以在其他文件只能通过函数调用
 EventManager* get_eventmanager() {
@@ -40,71 +32,14 @@ void init_eventmanager() {
 #endif
 }
 
-//生成结点
-EventNode* make_node(Coroutine* co) {
-    EventNode* res = (EventNode*)calloc(1, sizeof(EventNode));
-    res->co = co;
-    res->valid = 1;
-    res->free_times = 1;
-    return res;
-}
-
-//不需要释放co指向的内存，因为会转移这块内存的所有权，它之后还要用到，在协程结束时才由调度器销毁。
-void free_node(EventNode* node) {
-    node->free_times--;
-    assert(node->free_times >= 0);
-    //只要释放一次后，就一定是无效的了
-    node->valid = 0;
-    if (node->free_times == 0) free(node);
-}
-
-void free_list(EventList* list) {
-    while (!is_emptylist(list)) pop_front(list);
-    free(list->head);
-    free(list);
-}
-
-//添加到链表尾部
-EventNode* push_back(EventList* list, Coroutine* co) {
-    EventNode* node = make_node(co);
-    list->tail->next = node;
-    list->tail = node;
-    return node;
-}
-
-//从链表头部弹出
-Coroutine* pop_front(EventList* list) {
-    assert(list->head->next != NULL);
-    EventNode* node = list->head->next;
-    list->head->next = node->next;
-    Coroutine* co = node->co;
-    if (list->head->next == NULL) list->tail = list->head;
-    free_node(node);
-    return co;
-}
-
-//移除node的下一个节点
-void remove_next(EventList* list, EventNode* node) {
-    assert(node->next != NULL);
-    EventNode* tmp = node->next;
-    node->next = tmp->next;
-    free_node(tmp);
-    if (node->next == NULL) list->tail = node;
-}
-
-//判断链表是否为空
-bool is_emptylist(EventList* list) {
-    return list == NULL || list->head == list->tail;
-}
-
-void show_list(EventList* list) {
+void show_list(CoList* list) {
 #ifdef USE_DEBUG
-    EventNode* p = list->head;
+    CoNode* p = list->head;
     char buf[1024];
     buf[0] = '\0';
     while (p->next) {
         p = p->next;
-        strcat(buf, p->co->name);
+        strcat(buf, ((Coroutine*)p->data)->name);
         strcat(buf, " ");
         if (strlen(buf) > 1000) break;
     }
@@ -130,7 +65,7 @@ void add_coroutine(Coroutine* co) {
 }
 
 //加入epoll,合并不同协程对相同fd的等待
-EventNode* push_in_epoll(Coroutine* co) {
+CoNode* push_in_epoll(Coroutine* co) {
     if (co->fd < 0) return NULL;
     int fd = co->fd;
     //初次访问，分配内存
@@ -161,14 +96,14 @@ EventNode* push_in_epoll(Coroutine* co) {
 bool wait_event(epoll_event* event, unsigned long long timeout) {
     Coroutine* co = get_current_coroutine();
     if (event == NULL) {
-        EventNode* node = make_node(co);
+        CoNode* node = make_node(co);
         heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
     } else {
         int fd = event->data.fd;
         event->data.ptr = co;
         co->fd = fd;
         co->event = event;
-        EventNode* node = push_in_epoll(co);
+        CoNode* node = push_in_epoll(co);
         if (timeout != -1) {
             //同时加入超时队列和等待队列，所以需要释放两次
             node->free_times = 2;
@@ -188,7 +123,7 @@ bool wait_event(epoll_event* event, unsigned long long timeout) {
 
 //参数分别为：等待的条件变量；等待的时间(ms)
 //返回是否成功等到条件变量
-bool wait_cond(EventNode* node, unsigned long long timeout) {
+bool wait_cond(CoNode* node, unsigned long long timeout) {
     Coroutine* co = get_current_coroutine();
     node->free_times = 2;
     heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
@@ -209,15 +144,15 @@ void awake_epoll() {
     for (int i = 0; i < nfds; i++) {
         int fd = events[i].data.fd;
         uint32_t flag = events[i].events;
-        EventNode* p = EVENT_MANAGER.waiting_co[fd]->head;
+        CoNode* p = EVENT_MANAGER.waiting_co[fd]->head;
         bool find_event = false;
         while (p->next) {
             if (!p->next->valid) {
                 //已经因为超时被移除，直接跳过
                 remove_next(EVENT_MANAGER.waiting_co[fd], p);
-            } else if ((p->next->co->event->events & flag) != 0) {
-                p->next->co->event->events = flag;
-                push_back(EVENT_MANAGER.active_list, p->next->co);
+            } else if ((((Coroutine*)p->next->data)->event->events & flag) != 0) {
+                ((Coroutine*)p->next->data)->event->events = flag;
+                push_back(EVENT_MANAGER.active_list, p->next->data);
                 remove_next(EVENT_MANAGER.waiting_co[fd], p);
                 //同一个fd一次只弹出一个协程，因为同时弹出多个的话，可能一个协程的操作使另一个陷入阻塞。
                 //弹出时是弹出最早的，如果该协程再次加入则会进入队尾，实现轮转，不会导致其它协程饥饿。
@@ -243,7 +178,7 @@ void awake_epoll() {
 void awake_timeout() {
     //把超时的进程加入执行队列
     long long now = get_now();
-    EventNode* node;
+    CoNode* node;
     while (!heap_isempty(EVENT_MANAGER.time_heap) && now > heap_top(EVENT_MANAGER.time_heap)->w) {
         node = heap_pop(EVENT_MANAGER.time_heap).data;
         // valid为0，说明已经在epoll中被释放过了
@@ -252,10 +187,10 @@ void awake_timeout() {
             continue;
         }
 #ifdef USE_DEBUG
-        log_debug("%s time out", node->co->name);
+        log_debug("%s time out", ((Coroutine*)node->data)->name);
 #endif
-        node->co->timeout = 1;
-        add_coroutine(node->co);
+        ((Coroutine*)node->data)->timeout = 1;
+        add_coroutine(node->data);
         free_node(node);
     }
 }

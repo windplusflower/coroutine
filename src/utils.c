@@ -155,3 +155,68 @@ void ut_free_id(HandleTable *table, int id) {
     table->table[id] = NULL;
     table->unused[table->size++] = id;
 }
+
+//创建空链表
+CoList *make_empty_list() {
+    CoList *res = (CoList *)malloc(sizeof(CoList));
+    res->head = (CoNode *)calloc(1, sizeof(CoNode));
+    res->tail = res->head;
+    return res;
+}
+
+//生成结点
+CoNode *make_node(void *data) {
+    CoNode *res = (CoNode *)calloc(1, sizeof(CoNode));
+    res->data = data;
+    res->valid = 1;
+    res->free_times = 1;
+    return res;
+}
+
+//不需要释放co指向的内存，因为会转移这块内存的所有权，它之后还要用到，在协程结束时才由调度器销毁。
+void free_node(CoNode *node) {
+    node->free_times--;
+    assert(node->free_times >= 0);
+    //只要释放一次后，就一定是无效的了
+    node->valid = 0;
+    if (node->free_times == 0) free(node);
+}
+
+void free_list(CoList *list) {
+    while (!is_emptylist(list)) pop_front(list);
+    free(list->head);
+    free(list);
+}
+
+//添加到链表尾部
+CoNode *push_back(CoList *list, void *data) {
+    CoNode *node = make_node(data);
+    list->tail->next = node;
+    list->tail = node;
+    return node;
+}
+
+//从链表头部弹出
+void *pop_front(CoList *list) {
+    assert(list->head->next != NULL);
+    CoNode *node = list->head->next;
+    list->head->next = node->next;
+    void *data = node->data;
+    if (list->head->next == NULL) list->tail = list->head;
+    free_node(node);
+    return data;
+}
+
+//移除node的下一个节点
+void remove_next(CoList *list, CoNode *node) {
+    assert(node->next != NULL);
+    CoNode *tmp = node->next;
+    node->next = tmp->next;
+    free_node(tmp);
+    if (node->next == NULL) list->tail = node;
+}
+
+//判断链表是否为空
+bool is_emptylist(CoList *list) {
+    return list == NULL || list->head == list->tail;
+}
