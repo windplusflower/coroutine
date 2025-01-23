@@ -9,6 +9,7 @@
 
 #include "coroutine.h"
 #include "utils.h"
+typedef struct Mutex Mutex;
 #define EVENTSIZE 1024
 #define FDSIZE 1024
 
@@ -21,8 +22,13 @@ typedef struct EventManager {
     CoList* waiting_co[FDSIZE];                          // fd对应的协程列表
     epoll_event* flags[FDSIZE];                          // fd正在监听的事件
     timeval recv_timeout[FDSIZE], send_timeout[FDSIZE];  // fd对应的超时时间
+    CoList* locking_co;                                  // 正在等待锁的协程
     Heap* time_heap;
 } EventManager;
+typedef struct LockPair {
+    Mutex* mutex;
+    Coroutine* co;
+} LockPair;
 
 __thread static EventManager EVENT_MANAGER;
 
@@ -36,4 +42,6 @@ void add_coroutine(Coroutine* co);
 void event_loop();
 
 void show_list(CoList* list);
+
+void add_lock_waiting(Mutex* mutex, Coroutine* co);
 #endif

@@ -1,6 +1,7 @@
 #include "event_manager.h"
 
 #include <assert.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +27,7 @@ void init_eventmanager() {
     EVENT_MANAGER.events = (epoll_event*)malloc(EVENTSIZE * sizeof(epoll_event));
     //初始大小设多大无妨，因为会动态调整大小
     EVENT_MANAGER.time_heap = heap_create(1024);
+    EVENT_MANAGER.locking_co = make_empty_list();
 
 #ifdef USE_DEBUG
     log_debug("Event manager init finished");
@@ -197,6 +199,17 @@ void awake_timeout() {
 
 //唤醒收到锁的协程
 void awake_mutex() {
+    CoNode* p = EVENT_MANAGER.locking_co->head;
+    while (p->next) {
+        LockPair* lp = p->next->data;
+        if (pthread_mutex_trylock((pthread_mutex_t*)lp->mutex)) {
+            p = p->next;
+            continue;
+        }
+        add_coroutine(lp->co);
+        free(lp);
+        remove_next(EVENT_MANAGER.locking_co, p);
+    }
 }
 
 //唤醒收到响应的协程、超时的协程和获得锁的协程，加入执行队列
@@ -224,4 +237,11 @@ void event_loop() {
         }
         coroutine_resume(co);
     }
+}
+
+void add_lock_waiting(Mutex* mutex, Coroutine* co) {
+    LockPair* p = (LockPair*)malloc(sizeof(LockPair));
+    p->mutex = mutex;
+    p->co = co;
+    push_back(EVENT_MANAGER.locking_co, p);
 }
