@@ -12,6 +12,7 @@ void* test_mutex(const void* arg) {
         sleep(1);
         printf("co %d:num is %d after yield\n", id, num);
         co_mutex_unlock(mutex);
+        sleep(0);
     }
 }
 int main() {
@@ -26,5 +27,4 @@ int main() {
 }
 /*正确输出：
 同一协程的num在before yield和after yield不变
-实际只有一个协程在运行，因为对于这种情况下，只让一个协程执行或是多个协程执行效率相同。
 */
