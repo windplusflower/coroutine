@@ -1,4 +1,5 @@
 #include "co_cond.h"
+#include <stdatomic.h>
 #include "coroutine.h"
 #include "event_manager.h"
 #include "log.h"
@@ -8,7 +9,8 @@
 void* co_cond_alloc() {
     eventloop_init();
     Cond* cond = (Cond*)malloc(sizeof(Cond));
-    cond->list = make_empty_list();
+    atomic_init(&cond->cnt_signal, 0);
+    cond->cnt_broadcast = 0;
 #ifdef USE_DEBUG
     log_debug("alloc cond %p", cond);
 #endif
@@ -18,47 +20,18 @@ void* co_cond_alloc() {
 //通知一个
 void co_cond_signal(void* handle) {
     Cond* cond = (Cond*)handle;
-    if (cond == NULL) {
-        log_error("cond %p not exist!", handle);
-        return;
-    }
-    //移除已经因超时而无效的协程
-    while (!is_emptylist(cond->list) && !cond->list->head->next->valid)
-        remove_next(cond->list, cond->list->head);
-    if (is_emptylist(cond->list)) return;
-    cond->list->head->next->valid = 0;
-    Coroutine* co = pop_front(cond->list);
-#ifdef USE_DEBUG
-    log_debug("signal coroutine %s", co->name);
-#endif
-    add_coroutine(co);
+    atomic_fetch_add(&cond->cnt_signal, 1);
 }
 
 void co_cond_broadcast(void* handle) {
     Cond* cond = (Cond*)handle;
-    if (cond == NULL) {
-        log_error("cond %d not exist!", handle);
-        return;
-    }
-    while (!is_emptylist(cond->list)) {
-        if (!cond->list->head->next->valid)
-            remove_next(cond->list, cond->list->head);
-        else {
-            cond->list->head->next->valid = 0;
-            Coroutine* co = pop_front(cond->list);
-            add_coroutine(co);
-        }
-    }
+    cond->cnt_broadcast++;
 }
 
 int co_cond_wait(void* cond_handle, void* mutex_handle) {
     Cond* cond = (Cond*)cond_handle;
-    if (cond == NULL) {
-        log_error("cond %d not exist!", cond_handle);
-        return -1;
-    }
     co_mutex_unlock(mutex_handle);
-    push_back(cond->list, get_current_coroutine());
+    add_cond_waiting(cond, get_current_coroutine());
     coroutine_yield();
     co_mutex_lock(mutex_handle);
     return 0;
@@ -67,13 +40,9 @@ int co_cond_wait(void* cond_handle, void* mutex_handle) {
 //超时时间单位是ms
 int co_cond_timewait(void* cond_handle, void* mutex_handle, int timeout) {
     Cond* cond = (Cond*)cond_handle;
-    if (cond == NULL) {
-        log_error("cond %d not exist!", cond_handle);
-        return -1;
-    }
     co_mutex_unlock(mutex_handle);
-    push_back(cond->list, get_current_coroutine());
-    int ret = wait_cond(cond->list->tail, timeout) - 1;
+    CoNode* node = add_cond_waiting(cond, get_current_coroutine());
+    int ret = wait_cond(node, timeout) - 1;
     co_mutex_lock(mutex_handle);
     return ret;
 }
@@ -81,12 +50,6 @@ int co_cond_timewait(void* cond_handle, void* mutex_handle, int timeout) {
 //正在使用的话会返回-1;
 int co_cond_free(void* handle) {
     Cond* cond = (Cond*)handle;
-    if (cond == NULL) {
-        log_error("cond %d not exist!", handle);
-        return -1;
-    };
-    if (!is_emptylist(cond->list)) return -1;
-    free_list(cond->list);
     free(cond);
     return 0;
 }

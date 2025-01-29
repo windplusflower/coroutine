@@ -1,8 +1,9 @@
+#include <stdatomic.h>
 #include "event_manager.h"
 #include "utils.h"
 typedef struct Cond {
-    CoList* list;
+    atomic_int cnt_signal;
+    volatile int cnt_broadcast;
 } Cond;
-__thread static HandleTable COND_TABLE;
 
 void init_cond_table();

@@ -142,8 +142,9 @@ bool is_hook_enabled();
     - 先介绍比较简单的broadcast: 当一个协程`cond_wait`时，它会记录此时`cnt_broadcast`的值，如果某一个时刻`cnt_broadcast`改变了，那么一定是由其他协程调用了`cond_broadcast`，那么这个协程就可以被唤醒。当一个协程调用`cond_broadcast`时，则是简单地将`cnt_broadcast`自增。这一步是不需要加锁的。因为如果多个线程同时调用`cond_broadcast`的话，虽然竞争可能会导致`cnt_broadcast`应该增加的数量减少，但是它至少会增加1（需要加`volatile`保证每次都读到最新的值），这并不影响唤醒判断的正确性(可以类比普通的条件变量，连续多次调用`cond_broadcast`跟只调用一次`cond_broadcast`的结果是一样的，都是唤醒所有协程）。
     - 之后是signal: 当一个协程`cond_wait`时，它也会记录此时`cnt_signal`的值(这一步不需要加锁)，如果某一个时刻，记录的值低于条件变量中最新的值(这一步需要加锁)，就说明已经有线程调用过`cond_signal`，那么唤醒协程，并将`cnt_signal`的值自减。这里`cnt_signal`的作用有点类似于信号量，但不完全相同。当`cond_wait`时记录此时的值，只有到条件变量中的值更大时才唤醒，保证了在`cond_wait`调用之前的`cond_signal`不会唤醒之后的协程，同时也保证了每个`cond_signal`最多只唤醒一个协程（可能唤醒0个，这就是信号丢失的情况了，与普通的`cond_signal`相同）。
     - 优先判断`cond_broadcast`，因为它不需要同步，速度更快。
-    - 其中`mutex`和`cnt_signal`可以改成`atomic_int cnt_signal`，使用无锁编程实现相关操作。
+    - 其中`mutex`和`cnt_signal`可以改成`atomic_int cnt_signal`，使用原子操作实现相关功能。
     - 流程图如下: ![co_cond](figure/co_cond.png)
+- **25.01.29**: 为协程版条件变量支持多线程。
 
 ## Debug 记录
 ### 2024.11.25~2024.11.26
@@ -175,6 +176,9 @@ bool is_hook_enabled();
 - 添加了测试运行速度的测例和比较运行时间的脚本，最开始想试试10w线程和10w协程相比的效率问题，结果测例直接把服务器跑崩了。排查后发现不是协程崩了，而是线程崩了，估计是机器的内存不够支持10w线程运行吧，Hahahaha。
 ### 2025.1.14
 - 实现了协程版本的条件变量。写了一个test_cond进行测试时，发现生产者协程只运行一次后就再也没被调度过了，调度器只运行消费者协程。调试后发现，是因为我在co_cond_wait中使用wait_event来实现超时，但是它并无法感知协程是否已经被条件变量唤醒。同时，原本的yield有一个In_epoll参数，用来判断协程是否在等待事件。这两个导致了调度器总是唤醒消费者协程。考虑到yield接口之后是会向用户屏蔽的，只会在库内部调用，我可以保证调用yield一定是阻塞等待唤醒，因此协程不需要In_epoll这个字段了，yield也不需要执行add_coroutine操作。同时，之前为了防止忙等待而改成每次切换协程就调用一次awake也可以改成只在可执行队列为空时调用awake。同时还写了一个wait_cond来代替wait_event，专用于条件变量的超市等待，问题修复。
+### 2025.1.29
+- 尝试实现支持多线程的条件变量，发现cond_timewait超时时会崩溃，观察日志发现，它超时时唤醒的协程名字为null。排查后发现，因为我条件变量的超时是直接复用了epoll的超时，但是epoll里面CoNode.data就固定是Coroutine*，但是在条件变量里，CoNode.data则保存的是CondPair结构体，因此读取到了错误的协程的地址。但还是想能够复用，考虑把CondPair中的Coroutine* 放到第一个成员，想当然地认为加一下强制类型转换就能把CondPair* 当Coroutine* 用了,但依旧没能找到正确的协程。一番思索后发现，这样修改应该要强制类型转换为Coroutine** 再取值，这样才能得到正确的结果。但如此一来便跟直接用data保存Coroutine *的epoll不兼容了，需要大量修改。最后放弃复用，分别写了两个超时唤醒awake_epoll_timeout和awake_cond_timeout，问题解决。
+- 尝试测例test_cond，发现当cond_timewait成功时，在时间到后依旧会触发超时。原以为是超时队列未能正确跳过无效节点，但阅读这部分代码后发现并无错漏。进一步输出调试信息，发现awake_cond中存在valid和freetimes同时为0的时刻，进而发现，是成功队列未能正确跳过无效节点，到达时间后触发的超时与最近一次成功的等待并不来自于同一次cond_timeout，成功的等待唤醒的是上次已经超时的timewait调用，而超时的是这次的timewait调用，造成了看起来像是超时队列未能正确跳过无效结点的假象。在awake_cond中跳过已经超时的无效节点，问题解决。
 
 ## TODO
 

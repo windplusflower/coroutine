@@ -11,14 +11,14 @@ void* producer(const void* arg) {
         printf("pro send signal\n");
         co_mutex_unlock(mutex);
         co_cond_signal(cond);
-        sleep(1);
+        sleep(3);
     }
     return NULL;
 }
 void* consumer(const void* arg) {
     while (1) {
         co_mutex_lock(mutex);
-        int ret = co_cond_timewait(cond, mutex, 1500);
+        int ret = co_cond_timewait(cond, mutex, 2000);
         if (ret == 0)
             printf("success consum!\n");
         else
@@ -38,16 +38,8 @@ int main() {
     return 0;
 }
 /* 正确输出：
-pro send signal
-pro send signal
-success consum!
-timeout!
-pro send signal
-success consum!
-pro send signal
-success consum!
-pro send signal
-success consum!
-timeout!
+隔2秒，超时
+再隔1秒，成功
+以此循环
 ...
 */

@@ -12,6 +12,7 @@
 #include "log.h"
 #include "utils.h"
 #include "co_mutex.h"
+#include "co_cond.h"
 
 //获取EVENTMANAGER，在其他文件调用
 //因为EVENT_MANAGER有static属性，所以在其他文件只能通过函数调用
@@ -26,8 +27,10 @@ void init_eventmanager() {
     EVENT_MANAGER.event_size = EVENTSIZE;
     EVENT_MANAGER.events = (epoll_event*)malloc(EVENTSIZE * sizeof(epoll_event));
     //初始大小设多大无妨，因为会动态调整大小
-    EVENT_MANAGER.time_heap = heap_create(1024);
+    EVENT_MANAGER.epoll_time_heap = heap_create(1024);
+    EVENT_MANAGER.cond_time_heap = heap_create(1024);
     EVENT_MANAGER.locking_co = make_empty_list();
+    EVENT_MANAGER.cond_co = make_empty_list();
 
 #ifdef USE_DEBUG
     log_debug("Event manager init finished");
@@ -99,7 +102,7 @@ bool wait_event(epoll_event* event, unsigned long long timeout) {
     Coroutine* co = get_current_coroutine();
     if (event == NULL) {
         CoNode* node = make_node(co);
-        heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
+        heap_push(EVENT_MANAGER.epoll_time_heap, timeout + get_now(), node);
     } else {
         int fd = event->data.fd;
         event->data.ptr = co;
@@ -109,7 +112,7 @@ bool wait_event(epoll_event* event, unsigned long long timeout) {
         if (timeout != -1) {
             //同时加入超时队列和等待队列，所以需要释放两次
             node->free_times = 2;
-            heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
+            heap_push(EVENT_MANAGER.epoll_time_heap, timeout + get_now(), node);
         }
     }
 
@@ -128,7 +131,7 @@ bool wait_event(epoll_event* event, unsigned long long timeout) {
 bool wait_cond(CoNode* node, unsigned long long timeout) {
     Coroutine* co = get_current_coroutine();
     node->free_times = 2;
-    heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
+    heap_push(EVENT_MANAGER.cond_time_heap, timeout + get_now(), node);
 #ifdef USE_DEBUG
     log_debug("%s wait event(%dms) and yield", co->name, timeout);
 #endif
@@ -177,12 +180,13 @@ void awake_epoll() {
 }
 
 //唤醒超时的协程
-void awake_timeout() {
+void awake_epoll_timeout() {
     //把超时的进程加入执行队列
     long long now = get_now();
     CoNode* node;
-    while (!heap_isempty(EVENT_MANAGER.time_heap) && now > heap_top(EVENT_MANAGER.time_heap)->w) {
-        node = heap_pop(EVENT_MANAGER.time_heap).data;
+    while (!heap_isempty(EVENT_MANAGER.epoll_time_heap) &&
+           now > heap_top(EVENT_MANAGER.epoll_time_heap)->w) {
+        node = heap_pop(EVENT_MANAGER.epoll_time_heap).data;
         // valid为0，说明已经在epoll中被释放过了
         if (!node->valid) {
             free_node(node);
@@ -193,6 +197,28 @@ void awake_timeout() {
 #endif
         ((Coroutine*)node->data)->timeout = 1;
         add_coroutine(node->data);
+        free_node(node);
+    }
+}
+
+//唤醒超时的协程
+void awake_cond_timeout() {
+    //把超时的进程加入执行队列
+    long long now = get_now();
+    CoNode* node;
+    while (!heap_isempty(EVENT_MANAGER.cond_time_heap) &&
+           now > heap_top(EVENT_MANAGER.cond_time_heap)->w) {
+        node = heap_pop(EVENT_MANAGER.cond_time_heap).data;
+        // valid为0，说明已经在epoll中被释放过了
+        if (!node->valid) {
+            free_node(node);
+            continue;
+        }
+#ifdef USE_DEBUG
+        log_debug("%s time out", ((CondPair*)node->data)->co->name);
+#endif
+        ((CondPair*)node->data)->co->timeout = 1;
+        add_coroutine(((CondPair*)node->data)->co);
         free_node(node);
     }
 }
@@ -212,11 +238,43 @@ void awake_mutex() {
     }
 }
 
+// a>b时对a原子减,返回是否成功
+bool atomic_sub_if_greater(atomic_int* a, int b) {
+    int old_a;
+    do {
+        old_a = atomic_load(a);
+        if (old_a <= b) {
+            return false;
+        }
+    } while (!atomic_compare_exchange_strong(a, &old_a, old_a - 1));
+    return true;
+}
+
+//唤醒收到消息的条件变量
+void awake_cond() {
+    CoNode* p = EVENT_MANAGER.cond_co->head;
+    while (p->next) {
+        CondPair* cp = p->next->data;
+        if (p->next->valid == 0) {
+            remove_next(EVENT_MANAGER.cond_co, p);
+        } else if (cp->cnt_broadcast < cp->cond->cnt_broadcast ||
+                   atomic_sub_if_greater(&cp->cond->cnt_signal, cp->cnt_signal)) {
+            log_debug("cond awake co %s", cp->co->name);
+            add_coroutine(cp->co);
+            free(cp);
+            remove_next(EVENT_MANAGER.cond_co, p);
+        } else
+            p = p->next;
+    }
+}
+
 //唤醒收到响应的协程、超时的协程和获得锁的协程，加入执行队列
 void awake() {
     awake_epoll();
-    awake_timeout();
+    awake_epoll_timeout();
+    awake_cond_timeout();
     awake_mutex();
+    awake_cond();
 }
 
 //事件循环
@@ -244,4 +302,13 @@ void add_lock_waiting(Mutex* mutex, Coroutine* co) {
     p->mutex = mutex;
     p->co = co;
     push_back(EVENT_MANAGER.locking_co, p);
+}
+CoNode* add_cond_waiting(Cond* cond, Coroutine* co) {
+    CondPair* p = (CondPair*)malloc(sizeof(CondPair));
+    p->cond = cond;
+    p->co = co;
+    p->cnt_broadcast = cond->cnt_broadcast;
+    p->cnt_signal = atomic_load(&cond->cnt_signal);
+    push_back(EVENT_MANAGER.cond_co, p);
+    return EVENT_MANAGER.cond_co->tail;
 }

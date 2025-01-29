@@ -10,6 +10,7 @@
 #include "coroutine.h"
 #include "utils.h"
 typedef struct Mutex Mutex;
+typedef struct Cond Cond;
 #define EVENTSIZE 1024
 #define FDSIZE 1024
 
@@ -23,12 +24,20 @@ typedef struct EventManager {
     epoll_event* flags[FDSIZE];                          // fd正在监听的事件
     timeval recv_timeout[FDSIZE], send_timeout[FDSIZE];  // fd对应的超时时间
     CoList* locking_co;                                  // 正在等待锁的协程
-    Heap* time_heap;
+    CoList* cond_co;                                     // 等待中的条件变量
+    Heap *epoll_time_heap, *cond_time_heap;
 } EventManager;
+
 typedef struct LockPair {
-    Mutex* mutex;
     Coroutine* co;
+    Mutex* mutex;
 } LockPair;
+
+typedef struct CondPair {
+    Coroutine* co;
+    int cnt_signal, cnt_broadcast;
+    Cond* cond;
+} CondPair;
 
 __thread static EventManager EVENT_MANAGER;
 
@@ -44,4 +53,5 @@ void event_loop();
 void show_list(CoList* list);
 
 void add_lock_waiting(Mutex* mutex, Coroutine* co);
+CoNode* add_cond_waiting(Cond* cond, Coroutine* co);
 #endif
