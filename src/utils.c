@@ -1,6 +1,7 @@
 #include "utils.h"
 
 #include <assert.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -219,4 +220,96 @@ void remove_next(CoList *list, CoNode *node) {
 //判断链表是否为空
 bool is_emptylist(CoList *list) {
     return list == NULL || list->head == list->tail;
+}
+
+//无锁队列
+
+// 初始化队列
+void lock_free_list_init(LockFreeList *list) {
+    LockFreeNode *dummy = malloc(sizeof(LockFreeNode));
+    atomic_init(&dummy->next, NULL);
+    dummy->data = NULL;
+
+    atomic_init(&list->head, dummy);
+    atomic_init(&list->tail, dummy);
+}
+
+// 线程安全的入队操作
+void *lk_push_back(LockFreeList *list, void *data, int free_times) {
+    LockFreeNode *new_node = malloc(sizeof(LockFreeNode));
+    new_node->data = data;
+    atomic_init(&new_node->next, NULL);
+    atomic_init(&new_node->free_times, free_times);
+
+    LockFreeNode *tail;
+    LockFreeNode *next;
+
+    while (1) {
+        tail = atomic_load_explicit(&list->tail, memory_order_acquire);
+        next = atomic_load_explicit(&tail->next, memory_order_acquire);
+
+        // 验证一致性视图
+        if (tail == atomic_load_explicit(&list->tail, memory_order_relaxed)) {
+            if (next == NULL) {
+                // CAS原子追加新节点
+                if (atomic_compare_exchange_weak_explicit(
+                        &tail->next, &next, new_node,
+                        memory_order_release,     // 成功时的内存序
+                        memory_order_relaxed)) {  // 失败时的内存序
+                    break;
+                }
+            } else {
+                // 帮助推进尾指针
+                atomic_compare_exchange_weak_explicit(&list->tail, &tail, next,
+                                                      memory_order_release, memory_order_relaxed);
+            }
+        }
+    }
+
+    // 尝试推进尾指针（允许失败）
+    atomic_compare_exchange_weak_explicit(&list->tail, &tail, new_node, memory_order_release,
+                                          memory_order_relaxed);
+    return new_node;
+}
+
+void lk_free_node(LockFreeNode *node) {
+    int free_times = atomic_fetch_sub(&node->free_times, 1) - 1;
+    atomic_store(&node->valid, 0);
+    if (free_times == 0) free(node);
+}
+// 线程安全的出队操作（返回NULL表示空队列）
+void *lk_pop_front(LockFreeList *list) {
+    LockFreeNode *head;
+    LockFreeNode *tail;
+    LockFreeNode *next;
+    void *data = NULL;
+
+    while (1) {
+        head = atomic_load_explicit(&list->head, memory_order_acquire);
+        tail = atomic_load_explicit(&list->tail, memory_order_acquire);
+        next = atomic_load_explicit(&head->next, memory_order_acquire);
+
+        // 一致性检查
+        if (head == atomic_load_explicit(&list->head, memory_order_relaxed)) {
+            if (head == tail) {
+                if (next == NULL) {
+                    return NULL;  // 空队列
+                }
+                // 帮助推进尾指针
+                atomic_compare_exchange_weak_explicit(&list->tail, &tail, next,
+                                                      memory_order_release, memory_order_relaxed);
+            } else {
+                data = next->data;
+                // CAS移动头指针
+                if (atomic_compare_exchange_weak_explicit(
+                        &list->head, &head, next, memory_order_release, memory_order_relaxed)) {
+                    break;
+                }
+            }
+        }
+    }
+
+    // 安全延迟释放（需配合内存回收方案）
+    lk_free_node(head);  // 警告：实际使用时需要处理ABA问题
+    return data;
 }

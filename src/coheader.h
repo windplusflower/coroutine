@@ -26,6 +26,7 @@ co_mutex_t co_mutex_alloc();
 void co_mutex_lock(co_mutex_t handle);
 void co_mutex_unlock(co_mutex_t handle);
 int co_mutex_trylock(co_mutex_t handle);
+int co_mutex_free(co_mutex_t handle);
 
 /*********************************************/
 

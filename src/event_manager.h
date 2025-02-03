@@ -54,4 +54,5 @@ void show_list(CoList* list);
 
 void add_lock_waiting(Mutex* mutex, Coroutine* co);
 CoNode* add_cond_waiting(Cond* cond, Coroutine* co);
+void awake_cond();
 #endif

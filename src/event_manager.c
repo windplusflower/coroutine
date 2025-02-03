@@ -274,7 +274,7 @@ void awake() {
     awake_epoll_timeout();
     awake_cond_timeout();
     awake_mutex();
-    awake_cond();
+    // awake_cond();
 }
 
 //事件循环
@@ -282,6 +282,19 @@ void event_loop() {
     while (1) {
         if (is_emptylist(EVENT_MANAGER.active_list)) {
             awake();
+#ifdef USE_DEBUG
+            log_debug("**********waiting cond*****************");
+            if (is_emptylist(EVENT_MANAGER.active_list)) {
+                CoNode* p = EVENT_MANAGER.cond_co->head;
+                while (p->next) {
+                    p = p->next;
+                    CondPair* data = p->data;
+                    log_debug("co %s(%d) waiting cond %p(%d)", data->co->name, data->cnt_signal,
+                              data->cond, atomic_load(&data->cond->cnt_signal));
+                }
+            }
+            log_debug("**********waiting cond*****************");
+#endif
             continue;
         }
         show_epoll();

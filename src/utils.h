@@ -43,6 +43,18 @@ typedef struct CoList {
     CoNode *tail;
 } CoList;
 
+typedef struct LockFreeNode {
+    _Atomic(struct LockFreeNode *) next;
+    void *data;
+    _Atomic(unsigned char) free_times;
+    _Atomic(bool) valid;
+} LockFreeNode;
+
+typedef struct LockFreeList {
+    _Atomic(LockFreeNode *) head;
+    _Atomic(LockFreeNode *) tail;
+} LockFreeList;
+
 //堆
 Heap *heap_create(int capacity);
 void heap_free(Heap *heap);

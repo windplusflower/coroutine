@@ -17,13 +17,27 @@ void* co_mutex_alloc() {
 
 void co_mutex_lock(void* handle) {
     Mutex* mutex = (Mutex*)handle;
-    if (pthread_mutex_trylock((pthread_mutex_t*)mutex) == 0) return;
+    if (pthread_mutex_trylock((pthread_mutex_t*)mutex) == 0) {
+#ifdef USE_DEBUG
+        log_debug("co %s get mutex %p", get_current_coroutine()->name, mutex);
+#endif
+        return;
+    }
     add_lock_waiting(mutex, get_current_coroutine());
+#ifdef USE_DEBUG
+    log_debug("co %s wait mutex %p", get_current_coroutine()->name, mutex);
+#endif
     coroutine_yield();
+#ifdef USE_DEBUG
+    log_debug("co %s get mutex %p", get_current_coroutine()->name, mutex);
+#endif
 }
 
 void co_mutex_unlock(void* handle) {
     Mutex* mutex = (Mutex*)handle;
+#ifdef USE_DEBUG
+    log_debug("co %s unlock mutex %p", get_current_coroutine()->name, mutex);
+#endif
     pthread_mutex_unlock((pthread_mutex_t*)mutex);
 }
 

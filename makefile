@@ -16,8 +16,24 @@ $(C_BASENAMES): build
 clean:
 	@rm -r build
 
+# speed: build
+# 	@test -f measure || gcc measure.c -o measure
+# 	@./cmp_speed.sh ${TEST_PATH}/thread_fib ${TEST_PATH}/coroutine_fib 
 speed: build
 	@test -f measure || gcc measure.c -o measure
-	@./cmp_speed.sh ${TEST_PATH}/thread_fib ${TEST_PATH}/coroutine_fib 
+	@for thread in $(shell find ${TEST_PATH} -maxdepth 1 -type f -name 'thread_*' -executable); do \
+		thread_name=$$(basename $$thread); \
+		coroutine_name=$$(echo $$thread_name | sed 's/thread_/coroutine_/'); \
+		coroutine=$$(dirname $$thread)/$$coroutine_name; \
+		echo "Thread: $$thread, Coroutine: $$coroutine"; \
+		if [ -f $$coroutine ] && [ -x $$coroutine ]; then \
+			echo "Comparing $$thread with $$coroutine"; \
+			./cmp_speed.sh $$thread $$coroutine; \
+		fi \
+	done
+
+
+
+
 
 .PHONY: run build clean debug  $(C_BASENAMES) speed
