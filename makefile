@@ -21,6 +21,7 @@ clean:
 # 	@./cmp_speed.sh ${TEST_PATH}/thread_fib ${TEST_PATH}/coroutine_fib 
 speed: build
 	@test -f measure || gcc measure.c -o measure
+	@echo "\n"
 	@for thread in $(shell find ${TEST_PATH} -maxdepth 1 -type f -name 'thread_*' -executable); do \
 		thread_name=$$(basename $$thread); \
 		coroutine_name=$$(echo $$thread_name | sed 's/thread_/coroutine_/'); \
@@ -29,6 +30,7 @@ speed: build
 		if [ -f $$coroutine ] && [ -x $$coroutine ]; then \
 			echo "Comparing $$thread with $$coroutine"; \
 			./cmp_speed.sh $$thread $$coroutine; \
+			echo "\n"; \
 		fi \
 	done
 

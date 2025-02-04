@@ -222,6 +222,7 @@ void awake() {
 //事件循环
 void event_loop() {
     while (1) {
+        if (EVENT_MANAGER.time_heap->size > 1024) awake_timeout();
         if (is_emptylist(EVENT_MANAGER.active_list)) {
             awake();
             continue;

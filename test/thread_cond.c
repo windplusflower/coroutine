@@ -2,7 +2,7 @@
 #include <stdatomic.h>
 
 #define MAX_COUNT 100000
-#define NUM_THREADS 5000
+#define NUM_THREADS 10000
 
 static int shared_counter = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;

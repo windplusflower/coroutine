@@ -43,11 +43,10 @@ void heap_free(Heap *heap) {
     }
 }
 void heap_push(Heap *heap, long long weight, void *data) {
-    if (heap->size == heap->capacity) {
+    if (heap->size == heap->capacity - 1) {
         heap->capacity *= 2;
         heap->nodes = (HeapNode *)realloc(heap->nodes, heap->capacity * sizeof(HeapNode));
     }
-
     int i = ++heap->size;
     heap->nodes[i].w = weight;
     heap->nodes[i].data = data;

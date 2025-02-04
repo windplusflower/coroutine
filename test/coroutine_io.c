@@ -1,6 +1,6 @@
 #include "coheader.h"
 
-#define NUM_COROUTINES 5000
+#define NUM_COROUTINES 1000
 #define NUM_IO_OPERATIONS 100
 coroutine_t coroutines[NUM_COROUTINES];
 

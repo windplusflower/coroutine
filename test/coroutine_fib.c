@@ -1,7 +1,7 @@
 #include "coheader.h"
 
-#define NUM_coroutines 5000
-#define N 20
+#define NUM_coroutines 10000
+#define N 100
 
 unsigned long long fibonacci(int n) {
     if (n <= 1) return n;
@@ -17,7 +17,7 @@ unsigned long long fibonacci(int n) {
 void* coroutine_function(const void* arg) {
     int coroutine_id = *((int*)arg);
     unsigned long long result;
-    result = fibonacci(coroutine_id % N);
+    result = fibonacci(N);
     return NULL;
 }
 

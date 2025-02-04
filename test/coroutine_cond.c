@@ -3,7 +3,7 @@
 #include "coheader.h"
 
 #define MAX_COUNT 100000
-#define NUM_COROUTINES 5000
+#define NUM_COROUTINES 10000
 
 static int shared_counter = 0;
 co_mutex_t mutex;

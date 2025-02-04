@@ -4,8 +4,8 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-#define NUM_THREADS 5000
-#define N 20
+#define NUM_THREADS 10000
+#define N 100
 
 unsigned long long fibonacci(int n) {
     if (n <= 1) return n;
@@ -21,7 +21,7 @@ unsigned long long fibonacci(int n) {
 void* thread_function(void* arg) {
     int thread_id = *((int*)arg);
     unsigned long long result;
-    result = fibonacci(thread_id % N);
+    result = fibonacci(N);
     return NULL;
 }
 
