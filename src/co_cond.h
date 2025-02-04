@@ -2,9 +2,6 @@
 #include "event_manager.h"
 #include "utils.h"
 typedef struct Cond {
-    atomic_int cnt_signal;
-    volatile int cnt_broadcast;
-    atomic_int waiting_co;
+    CoList* waiting_co;
+    void* mutex;
 } Cond;
-
-void init_cond_table();

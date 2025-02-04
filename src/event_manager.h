@@ -24,8 +24,7 @@ typedef struct EventManager {
     epoll_event* flags[FDSIZE];                          // fd正在监听的事件
     timeval recv_timeout[FDSIZE], send_timeout[FDSIZE];  // fd对应的超时时间
     CoList* locking_co;                                  // 正在等待锁的协程
-    CoList* cond_co;                                     // 等待中的条件变量
-    Heap *epoll_time_heap, *cond_time_heap;
+    Heap* time_heap;
 } EventManager;
 
 typedef struct LockPair {
