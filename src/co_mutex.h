@@ -22,11 +22,10 @@
 #include "event_manager.h"
 #include "utils.h"
 #include <pthread.h>
-// Mutex* m
-// m==&m->mutex
-// 所以可以把m当&m->mutex用
 typedef struct Mutex {
     pthread_mutex_t mutex;
+    pthread_mutex_t mutex_pipe;//用于pipe队列。
+    CoList* pipe_list;
 } Mutex;
 __thread static HandleTable MUTEX_TABLE;
 

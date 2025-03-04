@@ -22,6 +22,7 @@
 #ifndef COROUTINE_H
 #define COROUTINE_H
 
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/ucontext.h>
@@ -53,19 +54,9 @@ typedef struct Coroutine {
     bool timeout;      //是否因timeout而被唤醒
     int fd;            //当前协程因哪个fd而挂起
     struct epoll_event *event;  //当前协程为了监听哪个事件而挂起；当前协程因为收到哪个事件而被唤醒
-    //    int handle;                   //协程对应的句柄
     void *return_val;             //协程返回值
     struct Coroutine *waited_co;  //等待自己结束的协程，用于join的通知
 } Coroutine;
-
-// //用于存储从句柄到协程的映射
-// typedef struct CoroutineTable {
-//     Coroutine **co_table;
-//     //未被使用的句柄
-//     int *unused;
-//     // size表示unused的大小
-//     int size, capacity;
-// } CoroutineTable;
 
 typedef struct CoroutineEnv {
     Coroutine *eventloop_coroutine;

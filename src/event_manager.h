@@ -37,6 +37,15 @@ typedef struct Cond Cond;
 
 typedef struct epoll_event epoll_event;
 typedef struct timeval timeval;
+
+typedef struct WaitingPipe{
+    int fd[2];
+    struct epoll_event* event;
+    atomic_bool awakable;
+    //目标已经被唤醒时值为false，否则为true
+    //避免重复唤醒或无效唤醒，这样可以减少管道读时花费的事件。
+}WaitingPipe;
+
 typedef struct EventManager {
     CoList* active_list;
     int epollfd, event_size;
@@ -46,6 +55,7 @@ typedef struct EventManager {
     timeval recv_timeout[FDSIZE], send_timeout[FDSIZE];  // fd对应的超时时间
     CoList* locking_co;                                  // 正在等待锁的协程
     Heap* time_heap;
+    WaitingPipe* waiting_pipe;
 } EventManager;
 
 typedef struct LockPair {
