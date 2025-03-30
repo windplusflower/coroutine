@@ -19,7 +19,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -28,7 +27,7 @@
 #include "coheader.h"
 #include "hook.h"
 int fd[2];
-void* read_pipe(const void*) {
+void *read_pipe(void *) {
     int buf[1000];
     while (1) {
         int ret = read(fd[0], buf, 1000);
@@ -36,7 +35,7 @@ void* read_pipe(const void*) {
     }
     return NULL;
 }
-void* write_pipe(const void*) {
+void *write_pipe(void *) {
     int buf[10000];
     int cnt = 0;
     while (1) {

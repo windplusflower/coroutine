@@ -35,8 +35,8 @@ unsigned long long fibonacci(int n) {
     return b;
 }
 
-void* coroutine_function(const void* arg) {
-    int coroutine_id = *((int*)arg);
+void *coroutine_function(void *arg) {
+    int coroutine_id = *((int *)arg);
     unsigned long long result;
     result = fibonacci(N);
     return NULL;
@@ -49,8 +49,6 @@ int main() {
         coroutine_ids[i] = i;
         coroutines[i] = coroutine_create(coroutine_function, &coroutine_ids[i], 0);
     }
-    for (int i = 0; i < NUM_coroutines; i++) {
-        coroutine_join(coroutines[i]);
-    }
+    for (int i = 0; i < NUM_coroutines; i++) { coroutine_join(coroutines[i]); }
     return 0;
 }

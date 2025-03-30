@@ -20,7 +20,7 @@
  */
 
 #include "coheader.h"
-void* slp(const void*) {
+void *slp(void *) {
     while (1) {
         sleep(1);
         printf("I sleep 1 second\n");

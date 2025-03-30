@@ -94,9 +94,7 @@ void coroutine_finish() {
     Coroutine *current_coroutine = get_current_coroutine();
     Coroutine *upcoming_coroutine = get_eventloop_coroutine();
     current_coroutine->status = COROUTINE_DEAD;
-    if (current_coroutine->waited_co != NULL) {
-        add_coroutine(current_coroutine->waited_co);
-    }
+    if (current_coroutine->waited_co != NULL) { add_coroutine(current_coroutine->waited_co); }
 #ifdef USE_DEBUG
     log_debug("%s finished and yield to %s", current_coroutine->name, upcoming_coroutine->name);
 #endif
@@ -111,7 +109,7 @@ void func_wrapper() {
 }
 
 //创建协程
-void *coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size) {
+void *coroutine_create(void *(*func)(void *), void *arg, size_t stack_size) {
     eventloop_init();
     if (stack_size <= 0) stack_size = STACKSIZE;
     Coroutine *co = (Coroutine *)malloc(sizeof(Coroutine));
@@ -129,11 +127,9 @@ void *coroutine_create(void *(*func)(const void *), const void *arg, size_t stac
     make_context(&co->context, func_wrapper);
 #ifdef USE_DEBUG
     char *buf = malloc(7);
-    for (int i = 0; i < 5; i++) {
-        buf[i] = 'a' + rand() % 26;
-    }
+    for (int i = 0; i < 5; i++) { buf[i] = 'a' + rand() % 26; }
     buf[5] = 0;
-    co->name = buf;  //仅作调试用，来辨识不同协程
+    co->name = buf; //仅作调试用，来辨识不同协程
     log_debug("create coroutine %s", co->name);
 #endif
     add_coroutine(co);

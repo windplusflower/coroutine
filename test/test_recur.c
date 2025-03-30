@@ -24,7 +24,7 @@
 #include "coheader.h"
 #include "coroutine.h"
 int recnum = 0;
-void *auto_rec(const void *) {
+void *auto_rec(void *) {
     if (recnum >= 5) return NULL;
     char name[2];
     name[0] = 'a';

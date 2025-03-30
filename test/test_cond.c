@@ -24,7 +24,7 @@
 #include "coheader.h"
 co_cond_t cond;
 co_mutex_t mutex;
-void* producer(const void* arg) {
+void *producer(void *arg) {
     while (1) {
         co_mutex_lock(mutex);
         //模拟切换协程
@@ -36,7 +36,7 @@ void* producer(const void* arg) {
     }
     return NULL;
 }
-void* consumer(const void* arg) {
+void *consumer(void *arg) {
     while (1) {
         co_mutex_lock(mutex);
         int ret = co_cond_timewait(cond, mutex, 2000);

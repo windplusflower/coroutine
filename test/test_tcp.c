@@ -32,7 +32,7 @@
 int PORT = 1000;
 #define BUFFER_SIZE 1024
 
-void* send_coroutine(const void* arg) {
+void *send_coroutine(void *arg) {
     int server_sock;
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
@@ -47,7 +47,7 @@ void* send_coroutine(const void* arg) {
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT);
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    if (bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    if (bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Bind failed");
         return NULL;
     }
@@ -58,7 +58,7 @@ void* send_coroutine(const void* arg) {
     }
 
     printf("Server is listening on port %d\n", PORT);
-    if ((client_sock = accept(server_sock, (struct sockaddr*)&server_addr, &addr_len)) < 0) {
+    if ((client_sock = accept(server_sock, (struct sockaddr *)&server_addr, &addr_len)) < 0) {
         perror("Accept failed");
         return NULL;
     }
@@ -78,7 +78,7 @@ void* send_coroutine(const void* arg) {
     return NULL;
 }
 
-void* recv_coroutine(const void* arg) {
+void *recv_coroutine(void *arg) {
     int client_sock;
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
@@ -92,7 +92,7 @@ void* recv_coroutine(const void* arg) {
     server_addr.sin_port = htons(PORT);
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
-    if (connect(client_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    if (connect(client_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Connection failed");
         return NULL;
     }

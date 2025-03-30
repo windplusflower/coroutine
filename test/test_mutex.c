@@ -24,8 +24,8 @@
 #include "hook.h"
 co_mutex_t mutex;
 int num = 0;
-void* test_mutex(const void* arg) {
-    int id = *(int*)arg;
+void *test_mutex(void *arg) {
+    int id = *(int *)arg;
     while (1) {
         co_mutex_lock(mutex);
         num++;

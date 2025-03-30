@@ -43,8 +43,8 @@ typedef enum {
 typedef struct Coroutine {
     Context context;
     coroutine_status status;
-    void *(*func)(const void *arg);
-    const void *arg;
+    void *(*func)(void *arg);
+    void *arg;
     char *stack;
     size_t stack_size;
 #ifdef USE_DEBUG
@@ -69,7 +69,7 @@ __thread static CoroutineEnv ENV;
 void init_coroutine_table();
 void eventloop_init();
 
-void *coroutine_create(void *(*func)(const void *), const void *arg, size_t stack_size);
+void *coroutine_create(void *(*func)(void *), void *arg, size_t stack_size);
 void coroutine_resume(void *handle);
 void coroutine_yield();
 void *coroutine_join(void *handle);

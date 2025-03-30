@@ -22,7 +22,7 @@
 #include "coheader.h"
 
 char buf[1024];
-void* read_test(const void*) {
+void *read_test(void *) {
     while (1) {
         printf("please input:\n");
         read(0, buf, 1024);
@@ -30,7 +30,7 @@ void* read_test(const void*) {
     }
     return NULL;
 }
-void* testing_read_suspend(const void*) {
+void *testing_read_suspend(void *) {
     while (1) {
         printf("read was not running now!\n");
         sleep(1);

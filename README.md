@@ -31,11 +31,11 @@ make test_return LOG_LEVEL=LOG_DEBUG
 ```C
 /*
 创建协程，返回句柄;
-参数func需要是一个void (*)(const void*)类型的函数;
-arg是一个const void*指针，表示传给func的参数，可以为NULL;
+参数func需要是一个void (*)(void*)类型的函数;
+arg是一个void*指针，表示传给func的参数，可以为NULL;
 stack_size是栈大小，可以用0表示由框架指定;
 */
-coroutine_t coroutine_create(void (*func)(const void *), void *arg, size_t stack_size);
+coroutine_t coroutine_create(void (*func)( void*), void *arg, size_t stack_size);
 
 //等待协程运行结束，获取返回值，并释放协程内存
 void* coroutine_join(coroutine_t handle);
@@ -157,6 +157,7 @@ bool is_hook_enabled();
 - **25.02.03**: 为条件变量添加效率测例，协程出现了两个条件变量互相等待的死锁现象，发现是思路细节问题，需要构思解决方案。
 - **25.02.04**: 修改条件变量实现方式，改用线程安全的队列来保存每个条件变量对应的协程。完善条件变量和互斥锁的效率测例。
 - **25.03.04**: 当线程中没有可执行的协程时，利用阻塞的epoll_wait挂起线程，后续利用Pipe来唤醒。
+- **25.03.30**: 意识到协程函数的参数类型使用const void\*不合适，不然遇到需要传递大量数据作为参数（比如数组）时不方便，因此修改回了void*类型
 
 ## Debug 记录
 ### 2024.11.25~2024.11.26

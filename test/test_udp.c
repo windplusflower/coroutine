@@ -35,7 +35,7 @@
 #define SERVER_IP "127.0.0.1"
 
 int sockfd;
-void *send_coroutine(const void *arg) {
+void *send_coroutine(void *arg) {
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
 
@@ -47,8 +47,8 @@ void *send_coroutine(const void *arg) {
     while (1) {
         sleep(1);
         snprintf(buffer, BUFFER_SIZE, "Hello from sender: %ld", time(NULL));
-        ssize_t sent_bytes = sendto(sockfd, buffer, strlen(buffer), 0,
-                                    (struct sockaddr *)&server_addr, sizeof(server_addr));
+        ssize_t sent_bytes =
+            sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
         if (sent_bytes < 0) {
             perror("sendto failed");
             continue;
@@ -59,15 +59,14 @@ void *send_coroutine(const void *arg) {
     return NULL;
 }
 
-void *recv_coroutine(const void *arg) {
+void *recv_coroutine(void *arg) {
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
     char buffer[BUFFER_SIZE];
 
     while (1) {
         //接收阻塞时，会自动让出cpu
-        ssize_t recv_bytes = recvfrom(sockfd, buffer, BUFFER_SIZE - 1, 0,
-                                      (struct sockaddr *)&client_addr, &addr_len);
+        ssize_t recv_bytes = recvfrom(sockfd, buffer, BUFFER_SIZE - 1, 0, (struct sockaddr *)&client_addr, &addr_len);
         if (recv_bytes < 0) {
             perror("recvfrom failed");
             continue;
