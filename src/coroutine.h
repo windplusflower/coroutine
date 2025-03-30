@@ -61,7 +61,6 @@ typedef struct Coroutine {
 typedef struct CoroutineEnv {
     Coroutine *eventloop_coroutine;
     Coroutine *current_coroutine;
-    HandleTable table;
 } CoroutineEnv;
 
 __thread static CoroutineEnv ENV;
