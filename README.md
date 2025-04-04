@@ -95,7 +95,7 @@ bool is_hook_enabled();
 ```
 
 ## 使用
-- src目录下会被编译为共享库libsrc.so，头文件包含coheader.h，链接此共享库即可使用。
+- src目录下会被编译为静态库。只要在项目头文件包含coheader.h，链接此库后即可使用。
 - 具体用法可以看test目录下的例程。
 
 ## 测例介绍
