@@ -63,7 +63,6 @@ typedef struct CoroutineEnv {
     Coroutine *current_coroutine;
 } CoroutineEnv;
 
-__thread static CoroutineEnv ENV;
 
 void init_coroutine_table();
 void eventloop_init();

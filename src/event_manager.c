@@ -39,6 +39,8 @@
 #include "co_mutex.h"
 #include "co_cond.h"
 
+__thread static EventManager EVENT_MANAGER;
+
 //获取EVENTMANAGER，在其他文件调用
 //因为EVENT_MANAGER有static属性，所以在其他文件只能通过函数调用
 EventManager *get_eventmanager() {

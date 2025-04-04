@@ -37,6 +37,7 @@
 #include "co_cond.h"
 #include "co_mutex.h"
 
+__thread static CoroutineEnv ENV;
 //获取当前协程
 Coroutine *get_current_coroutine() {
     return ENV.current_coroutine;

@@ -69,7 +69,6 @@ typedef struct CondPair {
     Cond* cond;
 } CondPair;
 
-__thread static EventManager EVENT_MANAGER;
 
 void init_eventmanager();
 EventManager* get_eventmanager();

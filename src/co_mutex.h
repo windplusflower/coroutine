@@ -27,6 +27,5 @@ typedef struct Mutex {
     pthread_mutex_t mutex_pipe;//用于pipe队列。
     CoList* pipe_list;
 } Mutex;
-__thread static HandleTable MUTEX_TABLE;
 
 void init_mutex_table();
