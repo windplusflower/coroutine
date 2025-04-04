@@ -40,6 +40,7 @@
 #include "co_cond.h"
 
 __thread static EventManager EVENT_MANAGER;
+atomic_bool fd_awakable[FDSIZE]; //确保一个fd同时只会被一个线程唤醒，避免线程间的竞争
 
 //获取EVENTMANAGER，在其他文件调用
 //因为EVENT_MANAGER有static属性，所以在其他文件只能通过函数调用
@@ -159,6 +160,7 @@ bool wait_event(epoll_event *event, unsigned long long timeout) {
         heap_push(EVENT_MANAGER.time_heap, timeout + get_now(), node);
     } else {
         int fd = event->data.fd;
+        atomic_store(fd_awakable + fd, true);
         event->data.ptr = co;
         co->fd = fd;
         co->event = event;
@@ -201,6 +203,8 @@ void awake_epoll(int timeout) {
     epoll_event *events = EVENT_MANAGER.events;
     for (int i = 0; i < nfds; i++) {
         int fd = events[i].data.fd;
+        bool expected = true;
+        if (!atomic_compare_exchange_strong(fd_awakable + fd, &expected, false)) continue;
         if (fd == EVENT_MANAGER.waiting_pipe->fd[0]) continue;
         uint32_t flag = events[i].events;
         CoNode *p = EVENT_MANAGER.waiting_co[fd]->head;
@@ -220,7 +224,10 @@ void awake_epoll(int timeout) {
             } else
                 p = p->next;
         }
-        if (find_event) continue;
+        if (find_event) {
+            atomic_store(fd_awakable + fd, true);
+            continue;
+        }
         //运行到这说明该fd的该事件已经没有协程需要监听了
         // flag是已监听成功的事件，不需要继续监听了
         EVENT_MANAGER.flags[fd]->events &= ~flag;
