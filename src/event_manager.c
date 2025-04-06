@@ -239,10 +239,11 @@ void awake_epoll(int timeout) {
         //运行到这说明该fd的该事件已经没有协程需要监听了
         // flag是已监听成功的事件，不需要继续监听了
         EVENT_MANAGER.flags[fd]->events &= ~flag;
-        if (EVENT_MANAGER.flags[fd]->events && !is_emptylist(EVENT_MANAGER.waiting_co[fd]))
+        if (EVENT_MANAGER.flags[fd]->events && !is_emptylist(EVENT_MANAGER.waiting_co[fd])) {
             //还有剩余事件则继续监听
+            atomic_store(fd_awakable + fd, true);
             epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_MOD, fd, EVENT_MANAGER.flags[fd]);
-        else
+        } else
             //否则不监听
             epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_DEL, fd, NULL);
     }
