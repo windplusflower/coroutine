@@ -30,7 +30,7 @@
 #include "context.h"
 #include "utils.h"
 
-#define STACKSIZE 1024 * 128
+#define STACKSIZE 1024 * 8
 #define TABLESIZE 1024
 
 typedef enum {

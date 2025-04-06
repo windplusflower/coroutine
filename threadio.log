@@ -1,0 +1,119 @@
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /root/coroutine/build
+make[1]: Entering directory '/root/coroutine/build'
+make[2]: Entering directory '/root/coroutine/build'
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target src
+make[3]: Leaving directory '/root/coroutine/build'
+[ 18%] Built target src
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target coroutine_cond
+make[3]: Leaving directory '/root/coroutine/build'
+[ 22%] Built target coroutine_cond
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target coroutine_createcal
+make[3]: Leaving directory '/root/coroutine/build'
+[ 25%] Built target coroutine_createcal
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target coroutine_createio
+make[3]: Leaving directory '/root/coroutine/build'
+[ 29%] Built target coroutine_createio
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target coroutine_fib
+make[3]: Leaving directory '/root/coroutine/build'
+[ 33%] Built target coroutine_fib
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target coroutine_io
+make[3]: Leaving directory '/root/coroutine/build'
+[ 37%] Built target coroutine_io
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target coroutine_mutex
+make[3]: Leaving directory '/root/coroutine/build'
+[ 40%] Built target coroutine_mutex
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_cond
+make[3]: Leaving directory '/root/coroutine/build'
+[ 44%] Built target test_cond
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_mutex
+make[3]: Leaving directory '/root/coroutine/build'
+[ 48%] Built target test_mutex
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_rdwr
+make[3]: Leaving directory '/root/coroutine/build'
+[ 51%] Built target test_rdwr
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_read
+make[3]: Leaving directory '/root/coroutine/build'
+[ 55%] Built target test_read
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_recur
+make[3]: Leaving directory '/root/coroutine/build'
+[ 59%] Built target test_recur
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_return
+make[3]: Leaving directory '/root/coroutine/build'
+[ 62%] Built target test_return
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_sleep
+make[3]: Leaving directory '/root/coroutine/build'
+[ 66%] Built target test_sleep
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_tcp
+make[3]: Leaving directory '/root/coroutine/build'
+[ 70%] Built target test_tcp
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_timeout
+make[3]: Leaving directory '/root/coroutine/build'
+[ 74%] Built target test_timeout
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_udp
+make[3]: Leaving directory '/root/coroutine/build'
+[ 77%] Built target test_udp
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target thread_cond
+make[3]: Leaving directory '/root/coroutine/build'
+[ 81%] Built target thread_cond
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target thread_createcal
+make[3]: Leaving directory '/root/coroutine/build'
+[ 85%] Built target thread_createcal
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target thread_createio
+make[3]: Leaving directory '/root/coroutine/build'
+[ 88%] Built target thread_createio
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target thread_fib
+make[3]: Leaving directory '/root/coroutine/build'
+[ 92%] Built target thread_fib
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target thread_io
+make[3]: Leaving directory '/root/coroutine/build'
+[ 96%] Built target thread_io
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target thread_mutex
+make[3]: Leaving directory '/root/coroutine/build'
+[100%] Built target thread_mutex
+make[2]: Leaving directory '/root/coroutine/build'
+make[1]: Leaving directory '/root/coroutine/build'
+create 5000 threads, runtime: 0.409s
+create 10000 threads, runtime: 0.497s
+create 15000 threads, runtime: 0.589s
+create 20000 threads, runtime: 0.679s
+create 25000 threads, runtime: 0.769s
+create 30000 threads, runtime: 0.865s
+create 35000 threads, runtime: 0.971s
+create 40000 threads, runtime: 1.062s
+create 45000 threads, runtime: 1.164s
+create 50000 threads, runtime: 1.255s
+create 55000 threads, runtime: 1.473s
+create 60000 threads, runtime: 1.557s
+create 65000 threads, runtime: 1.653s
+create 70000 threads, runtime: 1.749s
+create 75000 threads, runtime: 1.850s
+create 80000 threads, runtime: 1.944s
+create 85000 threads, runtime: 2.042s
+create 90000 threads, runtime: 2.133s
+create 95000 threads, runtime: 2.231s
+create 100000 threads, runtime: 2.321s

@@ -224,10 +224,18 @@ void awake_epoll(int timeout) {
             } else
                 p = p->next;
         }
+
+        if (is_emptylist(EVENT_MANAGER.waiting_co[fd])) {
+            //如果该fd的所有事件都已经被唤醒，则删除该fd的监听
+            epoll_ctl(EVENT_MANAGER.epollfd, EPOLL_CTL_DEL, fd, NULL);
+            EVENT_MANAGER.flags[fd]->events = 0;
+            continue;
+        }
         if (find_event) {
             atomic_store(fd_awakable + fd, true);
             continue;
         }
+
         //运行到这说明该fd的该事件已经没有协程需要监听了
         // flag是已监听成功的事件，不需要继续监听了
         EVENT_MANAGER.flags[fd]->events &= ~flag;

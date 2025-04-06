@@ -1,41 +1,38 @@
-
 Thread: ./build/test/thread_io, Coroutine: ./build/test/coroutine_io
 Comparing ./build/test/thread_io with ./build/test/coroutine_io
 ==================== 比较结果 ====================
-./build/test/thread_io 总运行时间: 1.123724182 秒, 最大内存占用: 54.35 MB
-./build/test/coroutine_io 总运行时间: 1.128928968 秒, 最大内存占用: 12.98 MB
-./build/test/thread_io 更快, 运行时间: 1.123724182 秒
-./build/test/coroutine_io 使用的内存更少, 最大内存占用: 12.98 MB
+./build/test/thread_io 总运行时间: 1.082297520 秒, 最大内存占用: 52.92 MB
+./build/test/coroutine_io 总运行时间: 1.114993365 秒, 最大内存占用: 6.61 MB
+./build/test/thread_io 更快, 运行时间: 1.082297520 秒
+./build/test/coroutine_io 使用的内存更少, 最大内存占用: 6.61 MB
 ==================== 比较完成 ====================
 
 
 Thread: ./build/test/thread_mutex, Coroutine: ./build/test/coroutine_mutex
 Comparing ./build/test/thread_mutex with ./build/test/coroutine_mutex
 ==================== 比较结果 ====================
-./build/test/thread_mutex 总运行时间: 0.772079239 秒, 最大内存占用: 551.12 MB
-./build/test/coroutine_mutex 总运行时间: 0.298368479 秒, 最大内存占用: 124.92 MB
-./build/test/coroutine_mutex 更快, 运行时间: 0.298368479 秒
-./build/test/coroutine_mutex 使用的内存更少, 最大内存占用: 124.92 MB
-==================== 比较完成 ====================
-
-
-Thread: ./build/test/thread_fib, Coroutine: ./build/test/coroutine_fib
-Comparing ./build/test/thread_fib with ./build/test/coroutine_fib
-==================== 比较结果 ====================
-./build/test/thread_fib 总运行时间: 0.806565116 秒, 最大内存占用: 551.28 MB
-./build/test/coroutine_fib 总运行时间: 0.273091908 秒, 最大内存占用: 115.30 MB
-./build/test/coroutine_fib 更快, 运行时间: 0.273091908 秒
-./build/test/coroutine_fib 使用的内存更少, 最大内存占用: 115.30 MB
+./build/test/thread_mutex 总运行时间: 0.315019249 秒, 最大内存占用: 82.35 MB
+./build/test/coroutine_mutex 总运行时间: 0.105853751 秒, 最大内存占用: 53.11 MB
+./build/test/coroutine_mutex 更快, 运行时间: 0.105853751 秒
+./build/test/coroutine_mutex 使用的内存更少, 最大内存占用: 53.11 MB
 ==================== 比较完成 ====================
 
 
 Thread: ./build/test/thread_cond, Coroutine: ./build/test/coroutine_cond
 Comparing ./build/test/thread_cond with ./build/test/coroutine_cond
 ==================== 比较结果 ====================
-./build/test/thread_cond 总运行时间: 0.800665404 秒, 最大内存占用: 229.08 MB
-./build/test/coroutine_cond 总运行时间: 0.779811450 秒, 最大内存占用: 125.98 MB
-./build/test/coroutine_cond 更快, 运行时间: 0.779811450 秒
-./build/test/coroutine_cond 使用的内存更少, 最大内存占用: 125.98 MB
+./build/test/thread_cond 总运行时间: 0.718720416 秒, 最大内存占用: 34.76 MB
+./build/test/coroutine_cond 总运行时间: 0.461410534 秒, 最大内存占用: 52.97 MB
+./build/test/coroutine_cond 更快, 运行时间: 0.461410534 秒
+./build/test/thread_cond 使用的内存更少, 最大内存占用: 34.76 MB
 ==================== 比较完成 ====================
 
 
+Thread: ./build/test/thread_fib, Coroutine: ./build/test/coroutine_fib
+Comparing ./build/test/thread_fib with ./build/test/coroutine_fib
+==================== 比较结果 ====================
+./build/test/thread_fib 总运行时间: 0.344244251 秒, 最大内存占用: 82.23 MB
+./build/test/coroutine_fib 总运行时间: 0.148876410 秒, 最大内存占用: 50.21 MB
+./build/test/coroutine_fib 更快, 运行时间: 0.148876410 秒
+./build/test/coroutine_fib 使用的内存更少, 最大内存占用: 50.21 MB
+==================== 比较完成 ====================

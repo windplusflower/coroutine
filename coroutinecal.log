@@ -1,0 +1,127 @@
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /root/coroutine/build
+make[1]: Entering directory '/root/coroutine/build'
+make[2]: Entering directory '/root/coroutine/build'
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target src
+make[3]: Leaving directory '/root/coroutine/build'
+[ 20%] Built target src
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target coroutine_cond
+make[3]: Leaving directory '/root/coroutine/build'
+[ 24%] Built target coroutine_cond
+make[3]: Entering directory '/root/coroutine/build'
+make[3]: Leaving directory '/root/coroutine/build'
+make[3]: Entering directory '/root/coroutine/build'
+[ 26%] Building C object test/CMakeFiles/coroutine_createcal.dir/coroutine_createcal.c.o
+[ 28%] Linking C executable coroutine_createcal
+make[3]: Leaving directory '/root/coroutine/build'
+[ 28%] Built target coroutine_createcal
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target coroutine_fib
+make[3]: Leaving directory '/root/coroutine/build'
+[ 32%] Built target coroutine_fib
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target coroutine_io
+make[3]: Leaving directory '/root/coroutine/build'
+[ 36%] Built target coroutine_io
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target coroutine_mutex
+make[3]: Leaving directory '/root/coroutine/build'
+[ 40%] Built target coroutine_mutex
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_cond
+make[3]: Leaving directory '/root/coroutine/build'
+[ 44%] Built target test_cond
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_mutex
+make[3]: Leaving directory '/root/coroutine/build'
+[ 48%] Built target test_mutex
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_rdwr
+make[3]: Leaving directory '/root/coroutine/build'
+[ 52%] Built target test_rdwr
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_read
+make[3]: Leaving directory '/root/coroutine/build'
+[ 56%] Built target test_read
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_recur
+make[3]: Leaving directory '/root/coroutine/build'
+[ 60%] Built target test_recur
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_return
+make[3]: Leaving directory '/root/coroutine/build'
+[ 64%] Built target test_return
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_sleep
+make[3]: Leaving directory '/root/coroutine/build'
+[ 68%] Built target test_sleep
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_tcp
+make[3]: Leaving directory '/root/coroutine/build'
+[ 72%] Built target test_tcp
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_timeout
+make[3]: Leaving directory '/root/coroutine/build'
+[ 76%] Built target test_timeout
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target test_udp
+make[3]: Leaving directory '/root/coroutine/build'
+[ 80%] Built target test_udp
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target thread_cond
+make[3]: Leaving directory '/root/coroutine/build'
+[ 84%] Built target thread_cond
+make[3]: Entering directory '/root/coroutine/build'
+make[3]: Leaving directory '/root/coroutine/build'
+make[3]: Entering directory '/root/coroutine/build'
+[ 86%] Building C object test/CMakeFiles/thread_createcal.dir/thread_createcal.c.o
+[ 88%] Linking C executable thread_createcal
+make[3]: Leaving directory '/root/coroutine/build'
+[ 88%] Built target thread_createcal
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target thread_fib
+make[3]: Leaving directory '/root/coroutine/build'
+[ 92%] Built target thread_fib
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target thread_io
+make[3]: Leaving directory '/root/coroutine/build'
+[ 96%] Built target thread_io
+make[3]: Entering directory '/root/coroutine/build'
+Consolidate compiler generated dependencies of target thread_mutex
+make[3]: Leaving directory '/root/coroutine/build'
+[100%] Built target thread_mutex
+make[2]: Leaving directory '/root/coroutine/build'
+make[1]: Leaving directory '/root/coroutine/build'
+create 100 coroutines, runtime: 0.099s
+create 200 coroutines, runtime: 0.205s
+create 300 coroutines, runtime: 0.385s
+create 400 coroutines, runtime: 0.727s
+create 500 coroutines, runtime: 1.199s
+create 600 coroutines, runtime: 1.778s
+create 700 coroutines, runtime: 2.496s
+create 800 coroutines, runtime: 3.333s
+create 900 coroutines, runtime: 4.321s
+create 1000 coroutines, runtime: 5.459s
+create 1100 coroutines, runtime: 6.686s
+create 1200 coroutines, runtime: 8.029s
+create 1300 coroutines, runtime: 9.511s
+create 1400 coroutines, runtime: 11.155s
+create 1500 coroutines, runtime: 12.888s
+create 1600 coroutines, runtime: 14.837s
+create 1700 coroutines, runtime: 16.871s
+create 1800 coroutines, runtime: 18.987s
+create 1900 coroutines, runtime: 21.279s
+create 2000 coroutines, runtime: 23.668s
+create 2100 coroutines, runtime: 26.211s
+create 2200 coroutines, runtime: 28.856s
+create 2300 coroutines, runtime: 31.668s
+create 2400 coroutines, runtime: 34.586s
+create 2500 coroutines, runtime: 37.734s
+create 2600 coroutines, runtime: 40.908s
+create 2700 coroutines, runtime: 44.289s
+create 2800 coroutines, runtime: 47.724s
+create 2900 coroutines, runtime: 51.314s
+create 3000 coroutines, runtime: 55.067s
