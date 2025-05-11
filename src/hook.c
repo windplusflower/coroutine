@@ -33,19 +33,18 @@
 typedef ssize_t (*read_t)(int fildes, void *buf, size_t nbyte);
 typedef ssize_t (*write_t)(int fildes, const void *buf, size_t nbyte);
 
-typedef ssize_t (*sendto_t)(int socket, const void *message, size_t length, int flags,
-                            const struct sockaddr *dest_addr, socklen_t dest_len);
+typedef ssize_t (*sendto_t)(int socket, const void *message, size_t length, int flags, const struct sockaddr *dest_addr,
+                            socklen_t dest_len);
 
-typedef ssize_t (*recvfrom_t)(int socket, void *buffer, size_t length, int flags,
-                              struct sockaddr *address, socklen_t *address_len);
+typedef ssize_t (*recvfrom_t)(int socket, void *buffer, size_t length, int flags, struct sockaddr *address,
+                              socklen_t *address_len);
 
 typedef ssize_t (*send_t)(int socket, const void *buffer, size_t length, int flags);
 typedef ssize_t (*recv_t)(int socket, void *buffer, size_t length, int flags);
 
 typedef int (*accept_t)(int fd, struct sockaddr *addr, socklen_t *addrlen);
 typedef int (*connect_t)(int socket, const struct sockaddr *address, socklen_t address_len);
-typedef int (*setsockopt_t)(int socket, int level, int option_name, const void *option_value,
-                            socklen_t option_len);
+typedef int (*setsockopt_t)(int socket, int level, int option_name, const void *option_value, socklen_t option_len);
 typedef int (*poll_t)(struct pollfd fds[], nfds_t nfds, int timeout);
 
 typedef unsigned int (*sleep_t)(unsigned int seconds);
@@ -69,7 +68,7 @@ static sleep_t sys_sleep;
 static usleep_t sys_usleep;
 /***********************************************************************************/
 
-__thread static bool is_hooked = false;
+static bool is_hooked = false;
 
 void init_hook() {
     static bool has_inited = false;
@@ -148,8 +147,7 @@ ssize_t co_write(int fd, const void *buf, size_t nbyte) {
     return ret;
 }
 
-ssize_t co_sendto(int fd, const void *buf, size_t n, int flags, const struct sockaddr *addr,
-                  socklen_t addrlen) {
+ssize_t co_sendto(int fd, const void *buf, size_t n, int flags, const struct sockaddr *addr, socklen_t addrlen) {
     int flag = fcntl(fd, F_GETFL);
     if (flag & O_NONBLOCK) return sys_sendto(fd, buf, n, flags, addr, addrlen);
 
@@ -175,8 +173,7 @@ ssize_t co_sendto(int fd, const void *buf, size_t n, int flags, const struct soc
     return ret;
 }
 
-ssize_t co_recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *addr,
-                    socklen_t *addrlen) {
+ssize_t co_recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *addr, socklen_t *addrlen) {
     int flag = fcntl(fd, F_GETFL);
     if (flag & O_NONBLOCK) return sys_recvfrom(fd, buf, n, flags, addr, addrlen);
     epoll_event event;
@@ -250,9 +247,7 @@ int co_connect(int fd, const struct sockaddr *address, socklen_t address_len) {
     int ret = sys_connect(fd, address, address_len);
     fcntl(fd, F_SETFL, flag);
 
-    if (!(ret < 0 && errno == EINPROGRESS)) {
-        return ret;
-    }
+    if (!(ret < 0 && errno == EINPROGRESS)) { return ret; }
 
     epoll_event event;
     event.data.fd = fd;
@@ -272,8 +267,7 @@ int co_connect(int fd, const struct sockaddr *address, socklen_t address_len) {
     return ret;
 }
 
-int co_setsockopt(int fd, int level, int option_name, const void *option_value,
-                  socklen_t option_len) {
+int co_setsockopt(int fd, int level, int option_name, const void *option_value, socklen_t option_len) {
     int res = sys_setsockopt(fd, level, option_name, option_value, option_len);
     //操作失败的话就不需要保存超时信息
     EventManager *event_manager = get_eventmanager();
@@ -318,8 +312,7 @@ ssize_t write(int fd, const void *buf, size_t nbyte) {
         return sys_write(fd, buf, nbyte);
 }
 
-ssize_t sendto(int fd, const void *buf, size_t n, int flags, const struct sockaddr *addr,
-               socklen_t addrlen) {
+ssize_t sendto(int fd, const void *buf, size_t n, int flags, const struct sockaddr *addr, socklen_t addrlen) {
     init_hook();
     if (is_hook_enabled())
         return co_sendto(fd, buf, n, flags, addr, addrlen);
@@ -327,8 +320,7 @@ ssize_t sendto(int fd, const void *buf, size_t n, int flags, const struct sockad
         return sys_sendto(fd, buf, n, flags, addr, addrlen);
 }
 
-ssize_t recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *addr,
-                 socklen_t *addrlen) {
+ssize_t recvfrom(int fd, void *buf, size_t n, int flags, struct sockaddr *addr, socklen_t *addrlen) {
     init_hook();
     if (is_hook_enabled())
         return co_recvfrom(fd, buf, n, flags, addr, addrlen);

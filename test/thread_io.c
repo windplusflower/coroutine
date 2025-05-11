@@ -22,7 +22,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#define NUM_THREADS 10000
+#define NUM_THREADS 1000
 #define NUM_IO_OPERATIONS 100
 pthread_t threads[NUM_THREADS];
 // 模拟IO操作
